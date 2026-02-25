@@ -1,0 +1,30 @@
+{
+  "name": "petshop-app-web",
+  "version": "1.0.0",
+  "description": "Sistema de gestão para Pet Shop / Loja de Ração - Web App",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
+    "dev:frontend": "vite --port 3000",
+    "dev:api": "node api/server.js",
+    "build": "vite build",
+    "vercel-build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.8",
+    "@mui/material": "^7.3.8",
+    "@supabase/supabase-js": "^2.45.0",
+    "axios": "^1.7.0",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^9.1.0",
+    "vite": "^6.0.0"
+  }
+}
