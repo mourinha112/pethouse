@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "builds": [
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } },
     { "src": "api/auth/index.js", "use": "@vercel/node" },
@@ -13,6 +16,6 @@
     { "source": "/api/dashboard/alerts", "destination": "/api/dashboard/alerts" },
     { "source": "/api/dashboard", "destination": "/api/dashboard" },
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
