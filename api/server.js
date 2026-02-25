@@ -570,8 +570,20 @@ app.get('/api/expenses', async (req, res) => {
       .order('data_vencimento', { ascending: true });
     if (err2) throw err2;
     const seen = new Set((noMes || []).map(e => e.id));
-    const recUniq = (rec || []).filter(e => !seen.has(e.id) && seen.add(e.id));
-    let list = [...(noMes || []), ...recUniq].sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
+    const noMesDesc = new Set((noMes || []).map(e => `${e.descricao}|${e.categoria || ''}`));
+    const recUniq = (rec || []).filter(e => {
+      if (seen.has(e.id)) return false;
+      const expMes = e.data_vencimento ? e.data_vencimento.slice(0, 7) : '';
+      if (expMes === mes) return seen.add(e.id);
+      if (noMesDesc.has(`${e.descricao}|${e.categoria || ''}`)) return false;
+      return seen.add(e.id);
+    });
+    let list = [...(noMes || []), ...recUniq].map(e => {
+      const isRec = e.recorrente === 1 || e.recorrente === true;
+      const expMes = e.data_vencimento ? e.data_vencimento.slice(0, 7) : '';
+      if (isRec && expMes !== mes) return { ...e, pago: 0, data_vencimento: mesInicio };
+      return e;
+    }).sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
     if (pagoFilter === 'true' || pagoFilter === '1') list = list.filter(e => e.pago);
     if (pagoFilter === 'false' || pagoFilter === '0') list = list.filter(e => !e.pago);
     res.json(list);
@@ -630,9 +642,34 @@ app.post('/api/expenses', async (req, res) => {
 app.put('/api/expenses/:id/toggle-pago', async (req, res) => {
   try {
     const id = req.params.id;
-    const { data: current, error: getErr } = await supabase.from('expenses').select('pago').eq('id', id).single();
-    if (getErr || !current) return res.status(404).json({ error: 'Despesa não encontrada' });
-    const novoPago = current.pago ? 0 : 1;
+    const mesParam = req.query.mes;
+    const { data: expense, error: getErr } = await supabase.from('expenses').select('*').eq('id', id).single();
+    if (getErr || !expense) return res.status(404).json({ error: 'Despesa não encontrada' });
+    const expMes = expense.data_vencimento ? expense.data_vencimento.slice(0, 7) : '';
+    const isRec = expense.recorrente === 1 || expense.recorrente === true;
+    const mes = mesParam || expMes || new Date().toISOString().slice(0, 7);
+    if (isRec && expMes !== mes) {
+      const mesInicio = mes + '-01';
+      const { data: existing } = await supabase.from('expenses').select('id, pago').eq('descricao', expense.descricao).eq('categoria', expense.categoria || 'outros').eq('data_vencimento', mesInicio).maybeSingle();
+      if (existing) {
+        const novoPago = existing.pago ? 0 : 1;
+        const { data: updated } = await supabase.from('expenses').update({ pago: novoPago, data_pagamento: novoPago ? new Date().toISOString().split('T')[0] : null }).eq('id', existing.id).select().single();
+        return res.json(updated);
+      }
+      const { data: newRow, error: insErr } = await supabase.from('expenses').insert([{
+        descricao: expense.descricao,
+        categoria: expense.categoria || 'outros',
+        valor: expense.valor,
+        data_vencimento: mesInicio,
+        pago: 1,
+        data_pagamento: new Date().toISOString().split('T')[0],
+        recorrente: 0,
+        tipo_recorrencia: expense.tipo_recorrencia || 'nenhum',
+      }]).select().single();
+      if (insErr) throw insErr;
+      return res.json(newRow);
+    }
+    const novoPago = expense.pago ? 0 : 1;
     const { data, error } = await supabase.from('expenses').update({ pago: novoPago, data_pagamento: novoPago ? new Date().toISOString().split('T')[0] : null }).eq('id', id).select().single();
     if (error) throw error;
     res.json(data);

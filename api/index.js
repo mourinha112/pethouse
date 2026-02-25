@@ -106,12 +106,17 @@ export default async function handler(req, res) {
     // Dashboard
     if (url === '/api/dashboard' && method === 'GET') {
       try {
-        const today = new Date().toISOString().split('T')[0];
-        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const todayStart = todayStr + 'T00:00:00.000Z';
+        const todayEnd = todayStr + 'T23:59:59.999Z';
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
         const { data: todaySales, error: salesError } = await supabase
           .from('sales')
-          .select('total, forma_pagamento')
-          .gte('created_at', today);
+          .select('total, forma_pagamento, created_at')
+          .gte('created_at', todayStart)
+          .lte('created_at', todayEnd);
 
         if (salesError) {
           console.error('Dashboard sales error:', salesError);
@@ -122,9 +127,15 @@ export default async function handler(req, res) {
         const todayCount = todaySales?.length || 0;
         const ticketMedio = todayCount > 0 ? todayTotal / todayCount : 0;
 
+        const { data: monthSales } = await supabase
+          .from('sales')
+          .select('total')
+          .gte('created_at', monthStart);
+        const monthTotal = monthSales?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
+
         const { data: products, error: productsError } = await supabase
           .from('products')
-          .select('estoque_kg')
+          .select('id, nome, marca, estoque_kg, preco_por_kg')
           .eq('ativo', 1);
 
         if (productsError) {
@@ -133,25 +144,97 @@ export default async function handler(req, res) {
         }
 
         const totalEstoque = products?.reduce((sum, p) => sum + (p.estoque_kg || 0), 0) || 0;
+        const valorEstoque = products?.reduce((sum, p) => sum + ((p.estoque_kg || 0) * (p.preco_por_kg || 0)), 0) || 0;
 
-        const now = new Date();
         const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const mesFim = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
         const { data: noMes } = await supabase.from('expenses').select('id, valor, pago').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim);
-        const { data: rec } = await supabase.from('expenses').select('id, valor, pago').eq('recorrente', 1);
+        const { data: rec } = await supabase.from('expenses').select('id, valor, pago').or('recorrente.eq.1,recorrente.eq.true');
         const seen = new Set((noMes || []).map(e => e.id));
         const recUniq = (rec || []).filter(e => !seen.has(e.id) && seen.add(e.id));
         const todasDoMes = [...(noMes || []), ...recUniq];
         const despesasPendentes = todasDoMes.filter(e => !e.pago).reduce((s, e) => s + (Number(e.valor) || 0), 0);
 
+        const { data: metaData } = await supabase.from('settings').select('value').eq('key', 'meta_diaria').maybeSingle();
+        const metaDiaria = parseFloat(metaData?.value || '500');
+        const metaPercent = metaDiaria > 0 ? Math.min(100, Math.round((todayTotal / metaDiaria) * 100)) : 0;
+
+        const { data: ultimasVendas } = await supabase
+          .from('sales')
+          .select('*, clients(nome)')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        const paymentsObj = {};
+        const paymentsQtd = {};
+        (todaySales || []).forEach(s => {
+          const forma = s.forma_pagamento || 'outros';
+          paymentsObj[forma] = (paymentsObj[forma] || 0) + (s.total || 0);
+          paymentsQtd[forma] = (paymentsQtd[forma] || 0) + 1;
+        });
+        const vendasPorPagamento = Object.entries(paymentsObj).map(([forma_pagamento, total]) => ({
+          forma_pagamento,
+          total,
+          qtd: paymentsQtd[forma_pagamento] || 0,
+        }));
+
+        const last30 = new Date();
+        last30.setDate(last30.getDate() - 30);
+        const since = last30.toISOString();
+        const { data: sales30 } = await supabase.from('sales').select('id').gte('created_at', since);
+        const saleIds = (sales30 || []).map(s => s.id);
+        let topProdutos = [];
+        if (saleIds.length > 0) {
+          const { data: items } = await supabase.from('sale_items').select('product_id, quantidade_kg, subtotal').in('sale_id', saleIds);
+          const byProduct = {};
+          (items || []).forEach(item => {
+            const id = item.product_id;
+            if (!byProduct[id]) byProduct[id] = { product_id: id, quantidade_kg: 0, total: 0 };
+            byProduct[id].quantidade_kg += item.quantidade_kg || 0;
+            byProduct[id].total += item.subtotal || 0;
+          });
+          topProdutos = Object.values(byProduct)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5)
+            .map(p => {
+              const prod = products?.find(x => x.id === p.product_id);
+              return {
+                nome: prod?.nome || 'Produto',
+                marca: prod?.marca || '',
+                total: p.total,
+                total_kg: p.quantidade_kg || 0,
+              };
+            });
+        }
+
+        const { data: estoqueBaixo } = await supabase
+          .from('products')
+          .select('nome, estoque_kg, estoque_minimo_dias')
+          .eq('ativo', 1)
+          .lt('estoque_kg', 10)
+          .order('estoque_kg')
+          .limit(5);
+
+        const { count: totalClientes } = await supabase.from('clients').select('*', { count: 'exact', head: true });
+
         return res.json({
           faturamento_dia: todayTotal,
           vendas_dia: todayCount,
           ticket_medio: ticketMedio,
+          faturamento_mes: monthTotal,
           estoque_total_kg: totalEstoque,
-          meta_diaria: 500,
-          meta_percent: 0,
-          despesas_pendentes: despesasPendentes
+          valor_estoque: valorEstoque,
+          total_produtos: products?.length || 0,
+          total_clientes: totalClientes ?? 0,
+          despesas_pendentes: despesasPendentes,
+          meta_diaria: metaDiaria,
+          meta_percent: metaPercent,
+          pagamentos: paymentsObj,
+          vendas_por_pagamento: vendasPorPagamento,
+          ultimas_vendas: ultimasVendas || [],
+          top_produtos: topProdutos,
+          alertas_estoque: estoqueBaixo || [],
+          estoque_baixo: estoqueBaixo || [],
         });
       } catch (err) {
         console.error('Dashboard error:', err);
@@ -486,8 +569,20 @@ export default async function handler(req, res) {
             rec = allList.filter(e => e.recorrente === 1 || e.recorrente === true);
           }
           const seen = new Set(noMes.map(e => e.id));
-          const recUniq = rec.filter(e => !seen.has(e.id) && seen.add(e.id));
-          let list = [...noMes, ...recUniq].sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
+          const noMesDesc = new Set(noMes.map(e => `${e.descricao}|${e.categoria || ''}`));
+          const recUniq = rec.filter(e => {
+            if (seen.has(e.id)) return false;
+            const expMes = e.data_vencimento ? e.data_vencimento.slice(0, 7) : '';
+            if (expMes === mes) return seen.add(e.id);
+            if (noMesDesc.has(`${e.descricao}|${e.categoria || ''}`)) return false;
+            return seen.add(e.id);
+          });
+          let list = [...noMes, ...recUniq].map(e => {
+            const isRec = e.recorrente === 1 || e.recorrente === true;
+            const expMes = e.data_vencimento ? e.data_vencimento.slice(0, 7) : '';
+            if (isRec && expMes !== mes) return { ...e, pago: 0, data_vencimento: mesInicio };
+            return e;
+          }).sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
           if (pagoFilter === 'true' || pagoFilter === '1') list = list.filter(e => e.pago);
           if (pagoFilter === 'false' || pagoFilter === '0') list = list.filter(e => !e.pago);
           return res.json(list);
@@ -520,13 +615,39 @@ export default async function handler(req, res) {
       }
     }
 
-    // Expenses - toggle pago (marcar como pago/pendente)
+    // Expenses - toggle pago (marcar como pago/pendente). Se recorrente e mes diferente, cria cópia do mês.
     if (url.match(/^\/api\/expenses\/\d+\/toggle-pago$/) && method === 'PUT') {
       try {
         const id = url.replace(/^\/api\/expenses\//, '').replace(/\/toggle-pago$/, '');
-        const { data: current, error: getErr } = await supabase.from('expenses').select('pago').eq('id', id).single();
-        if (getErr || !current) return res.status(404).json({ error: 'Despesa não encontrada' });
-        const novoPago = current.pago ? 0 : 1;
+        const qs = rawUrl.includes('?') ? new URLSearchParams(rawUrl.split('?')[1]) : null;
+        const mesParam = qs && qs.get('mes');
+        const { data: expense, error: getErr } = await supabase.from('expenses').select('*').eq('id', id).single();
+        if (getErr || !expense) return res.status(404).json({ error: 'Despesa não encontrada' });
+        const expMes = expense.data_vencimento ? expense.data_vencimento.slice(0, 7) : '';
+        const isRec = expense.recorrente === 1 || expense.recorrente === true;
+        const mes = mesParam || expMes || new Date().toISOString().slice(0, 7);
+        if (isRec && expMes !== mes) {
+          const mesInicio = mes + '-01';
+          const { data: existing } = await supabase.from('expenses').select('id, pago').eq('descricao', expense.descricao).eq('categoria', expense.categoria || 'outros').eq('data_vencimento', mesInicio).maybeSingle();
+          if (existing) {
+            const novoPago = existing.pago ? 0 : 1;
+            const { data: updated } = await supabase.from('expenses').update({ pago: novoPago, data_pagamento: novoPago ? new Date().toISOString().split('T')[0] : null }).eq('id', existing.id).select().single();
+            return res.json(updated);
+          }
+          const { data: newRow, error: insErr } = await supabase.from('expenses').insert([{
+            descricao: expense.descricao,
+            categoria: expense.categoria || 'outros',
+            valor: expense.valor,
+            data_vencimento: mesInicio,
+            pago: 1,
+            data_pagamento: new Date().toISOString().split('T')[0],
+            recorrente: 0,
+            tipo_recorrencia: expense.tipo_recorrencia || 'nenhum',
+          }]).select().single();
+          if (insErr) throw insErr;
+          return res.json(newRow);
+        }
+        const novoPago = expense.pago ? 0 : 1;
         const { data, error } = await supabase.from('expenses').update({ pago: novoPago, data_pagamento: novoPago ? new Date().toISOString().split('T')[0] : null }).eq('id', id).select().single();
         if (error) throw error;
         return res.json(data);

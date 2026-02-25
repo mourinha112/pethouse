@@ -86,7 +86,7 @@ export default function Expenses() {
 
   async function togglePago(id) {
     try {
-      await api.put(`/expenses/${id}/toggle-pago`);
+      await api.put(`/expenses/${id}/toggle-pago?mes=${currentMonth}`);
       loadData();
     } catch (err) {
       toast.error(err.message);
