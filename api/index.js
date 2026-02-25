@@ -473,13 +473,21 @@ export default async function handler(req, res) {
           const [y, m] = mes.split('-').map(Number);
           const mesInicio = new Date(y, m - 1, 1).toISOString().split('T')[0];
           const mesFim = new Date(y, m, 0).toISOString().split('T')[0];
-          const { data: noMes, error: err1 } = await supabase.from('expenses').select('*').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim).order('data_vencimento', { ascending: true });
-          if (err1) throw err1;
-          const { data: rec, error: err2 } = await supabase.from('expenses').select('*').or('recorrente.eq.1,recorrente.eq.true').order('data_vencimento', { ascending: true });
-          if (err2) throw err2;
-          const seen = new Set((noMes || []).map(e => e.id));
-          const recUniq = (rec || []).filter(e => !seen.has(e.id) && seen.add(e.id));
-          let list = [...(noMes || []), ...recUniq].sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
+          let noMes = [];
+          let rec = [];
+          const { data: noMesData, error: err1 } = await supabase.from('expenses').select('*').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim).order('data_vencimento', { ascending: true });
+          if (!err1) noMes = noMesData || [];
+          const { data: recData, error: err2 } = await supabase.from('expenses').select('*').or('recorrente.eq.1,recorrente.eq.true').order('data_vencimento', { ascending: true });
+          if (!err2) rec = recData || [];
+          if (noMes.length === 0 && rec.length === 0) {
+            const { data: all } = await supabase.from('expenses').select('*').order('data_vencimento', { ascending: true });
+            const allList = all || [];
+            noMes = allList.filter(e => e.data_vencimento && e.data_vencimento >= mesInicio && e.data_vencimento <= mesFim);
+            rec = allList.filter(e => e.recorrente === 1 || e.recorrente === true);
+          }
+          const seen = new Set(noMes.map(e => e.id));
+          const recUniq = rec.filter(e => !seen.has(e.id) && seen.add(e.id));
+          let list = [...noMes, ...recUniq].sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
           if (pagoFilter === 'true' || pagoFilter === '1') list = list.filter(e => e.pago);
           if (pagoFilter === 'false' || pagoFilter === '0') list = list.filter(e => !e.pago);
           return res.json(list);
