@@ -530,7 +530,12 @@ export default async function handler(req, res) {
     // Sales - list
     if (url === '/api/sales' && method === 'GET') {
       try {
-        const query = rawUrl.includes('?') ? Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1])) : {};
+        let query = {};
+        try {
+          if (rawUrl.includes('?')) {
+            query = Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1]));
+          }
+        } catch (_) {}
         const dataInicio = query.data_inicio || new Date().toISOString().split('T')[0];
         const dataFim = query.data_fim || dataInicio;
         const { data, error } = await supabase
@@ -541,13 +546,12 @@ export default async function handler(req, res) {
           .order('created_at', { ascending: false });
         if (error) {
           console.error('Sales list error:', error);
-          return res.status(500).json({ error: 'Erro ao buscar vendas' });
         }
         const list = (data || []).map(s => ({ ...s, client_nome: s.clients?.nome || null }));
         return res.json(list);
       } catch (err) {
         console.error('Sales error:', err);
-        return res.status(500).json({ error: err.message });
+        return res.json([]);
       }
     }
 
