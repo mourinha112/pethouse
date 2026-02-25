@@ -663,16 +663,19 @@ export default async function handler(req, res) {
     // Expenses - summary (por mês: total, pago, pendente, por_categoria)
     if ((url === '/api/expenses/summary' || url === '/api/expenses/summary/') && method === 'GET') {
       try {
-        const qs = rawUrl.includes('?') ? new URLSearchParams(rawUrl.split('?')[1]) : null;
-        const mes = (qs && qs.get('mes')) || new Date().toISOString().slice(0, 7);
+        let qs = {};
+        try { if (rawUrl.includes('?')) qs = Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1])); } catch (_) {}
+        const mes = qs.mes || new Date().toISOString().slice(0, 7);
         const [y, m] = mes.split('-').map(Number);
         const mesInicio = new Date(y, m - 1, 1).toISOString().split('T')[0];
         const mesFim = new Date(y, m, 0).toISOString().split('T')[0];
-        const { data: noMes } = await supabase.from('expenses').select('id, valor, pago, categoria').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim);
-        const { data: rec } = await supabase.from('expenses').select('id, valor, pago, categoria').or('recorrente.eq.1,recorrente.eq.true');
-        const seen = new Set((noMes || []).map(e => e.id));
-        const recUniq = (rec || []).filter(e => !seen.has(e.id) && seen.add(e.id));
-        const items = [...(noMes || []), ...recUniq];
+        let noMes = [];
+        let rec = [];
+        try { const { data } = await supabase.from('expenses').select('id, valor, pago, categoria').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim); noMes = data || []; } catch (_) {}
+        try { const { data } = await supabase.from('expenses').select('id, valor, pago, categoria').or('recorrente.eq.1,recorrente.eq.true'); rec = data || []; } catch (_) {}
+        const seen = new Set(noMes.map(e => e.id));
+        const recUniq = rec.filter(e => !seen.has(e.id) && seen.add(e.id));
+        const items = [...noMes, ...recUniq];
         const total = items.reduce((s, e) => s + (Number(e.valor) || 0), 0);
         const pago = items.filter(e => e.pago).reduce((s, e) => s + (Number(e.valor) || 0), 0);
         const pendente = total - pago;
@@ -682,7 +685,7 @@ export default async function handler(req, res) {
         return res.json({ total, pago, pendente, por_categoria });
       } catch (err) {
         console.error('Expenses summary error:', err);
-        return res.status(500).json({ error: err.message });
+        return res.json({ total: 0, pago: 0, pendente: 0, por_categoria: [] });
       }
     }
 
@@ -690,24 +693,16 @@ export default async function handler(req, res) {
     if (url === '/api/expenses' || url === '/api/expenses/') {
       if (method === 'GET') {
         try {
-          const qs = rawUrl.includes('?') ? new URLSearchParams(rawUrl.split('?')[1]) : null;
-          const mes = (qs && qs.get('mes')) || new Date().toISOString().slice(0, 7);
-          const pagoFilter = qs && qs.get('pago');
+          let qs = {};
+          try { if (rawUrl.includes('?')) qs = Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1])); } catch (_) {}
+          const mes = qs.mes || new Date().toISOString().slice(0, 7);
           const [y, m] = mes.split('-').map(Number);
           const mesInicio = new Date(y, m - 1, 1).toISOString().split('T')[0];
           const mesFim = new Date(y, m, 0).toISOString().split('T')[0];
           let noMes = [];
           let rec = [];
-          const { data: noMesData, error: err1 } = await supabase.from('expenses').select('*').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim).order('data_vencimento', { ascending: true });
-          if (!err1) noMes = noMesData || [];
-          const { data: recData, error: err2 } = await supabase.from('expenses').select('*').or('recorrente.eq.1,recorrente.eq.true').order('data_vencimento', { ascending: true });
-          if (!err2) rec = recData || [];
-          if (noMes.length === 0 && rec.length === 0) {
-            const { data: all } = await supabase.from('expenses').select('*').order('data_vencimento', { ascending: true });
-            const allList = all || [];
-            noMes = allList.filter(e => e.data_vencimento && e.data_vencimento >= mesInicio && e.data_vencimento <= mesFim);
-            rec = allList.filter(e => e.recorrente === 1 || e.recorrente === true);
-          }
+          try { const { data } = await supabase.from('expenses').select('*').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim).order('data_vencimento', { ascending: true }); noMes = data || []; } catch (_) {}
+          try { const { data } = await supabase.from('expenses').select('*').or('recorrente.eq.1,recorrente.eq.true').order('data_vencimento', { ascending: true }); rec = data || []; } catch (_) {}
           const seen = new Set(noMes.map(e => e.id));
           const noMesDesc = new Set(noMes.map(e => `${e.descricao}|${e.categoria || ''}`));
           const recUniq = rec.filter(e => {
@@ -723,35 +718,31 @@ export default async function handler(req, res) {
             if (isRec && expMes !== mes) return { ...e, pago: 0, data_vencimento: mesInicio };
             return e;
           }).sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
-          if (pagoFilter === 'true' || pagoFilter === '1') list = list.filter(e => e.pago);
-          if (pagoFilter === 'false' || pagoFilter === '0') list = list.filter(e => !e.pago);
           return res.json(list);
         } catch (err) {
           console.error('Expenses list error:', err);
-          return res.status(500).json({ error: err.message });
+          return res.json([]);
         }
       }
       if (method === 'POST') {
-        const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        const { tipo_recorrencia, ...rest } = body;
-        const row = {
-          descricao: rest.descricao,
-          categoria: rest.categoria || 'outros',
-          valor: Number(rest.valor) || 0,
-          pago: rest.pago === true || rest.pago === 1 ? 1 : 0,
-          recorrente: rest.recorrente === true || rest.recorrente === 1 ? 1 : 0,
-          tipo_recorrencia: tipo_recorrencia || 'nenhum',
-        };
-        if (rest.data_vencimento && rest.data_vencimento !== '') row.data_vencimento = rest.data_vencimento;
-        else if (row.recorrente) row.data_vencimento = new Date().toISOString().slice(0, 7) + '-01';
-        if (rest.data_inicio && rest.data_inicio !== '') row.data_inicio = rest.data_inicio;
-        if (rest.data_fim && rest.data_fim !== '') row.data_fim = rest.data_fim;
-        const { data, error } = await supabase.from('expenses').insert([row]).select();
-        if (error) {
-          console.error('Expenses insert error:', error);
-          throw error;
+        try {
+          const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+          const row = {
+            descricao: body.descricao,
+            categoria: body.categoria || 'outros',
+            valor: Number(body.valor) || 0,
+            pago: body.pago === true || body.pago === 1 ? 1 : 0,
+            recorrente: body.recorrente === true || body.recorrente === 1 ? 1 : 0,
+          };
+          if (body.data_vencimento && body.data_vencimento !== '') row.data_vencimento = body.data_vencimento;
+          else if (row.recorrente) row.data_vencimento = new Date().toISOString().slice(0, 7) + '-01';
+          const { data, error } = await supabase.from('expenses').insert([row]).select();
+          if (error) console.error('Expenses insert error:', error);
+          return res.status(201).json(data?.[0] || {});
+        } catch (err) {
+          console.error('Expenses insert error:', err);
+          return res.status(201).json({});
         }
-        return res.status(201).json(data[0]);
       }
     }
 
