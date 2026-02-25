@@ -49,7 +49,7 @@ export default function Cashier() {
   async function loadHistory() {
     try {
       const res = await api.get(`/cashier/history`);
-      setHistory(res.data);
+      setHistory(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
     }

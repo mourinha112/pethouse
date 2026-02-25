@@ -57,7 +57,8 @@ const emptyDashboard = () => ({
 
 export default async function handler(req, res) {
   const method = req.method || 'GET';
-  const url = safePath(req.url || req.path || '');
+  const rawUrl = req.url || req.path || '';
+  const url = safePath(rawUrl);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -734,8 +735,9 @@ export default async function handler(req, res) {
             pago: body.pago === true || body.pago === 1 ? 1 : 0,
             recorrente: body.recorrente === true || body.recorrente === 1 ? 1 : 0,
           };
-          if (body.data_vencimento && body.data_vencimento !== '') row.data_vencimento = body.data_vencimento;
-          else if (row.recorrente) row.data_vencimento = new Date().toISOString().slice(0, 7) + '-01';
+          row.data_vencimento = (body.data_vencimento && body.data_vencimento !== '')
+            ? body.data_vencimento
+            : new Date().toISOString().slice(0, 7) + '-01';
           const { data, error } = await supabase.from('expenses').insert([row]).select();
           if (error) console.error('Expenses insert error:', error);
           return res.status(201).json(data?.[0] || {});
