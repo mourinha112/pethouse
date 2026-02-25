@@ -321,7 +321,7 @@ app.get('/api/dashboard', async (req, res) => {
     // Vendas de hoje
     const { data: todaySales } = await supabase
       .from('sales')
-      .select('total, forma_pagamento')
+      .select('id, total, forma_pagamento')
       .gte('created_at', today);
 
     const todayTotal = todaySales?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
@@ -331,19 +331,51 @@ app.get('/api/dashboard', async (req, res) => {
     // Vendas do mês
     const { data: monthSales } = await supabase
       .from('sales')
-      .select('total')
+      .select('id, total')
       .gte('created_at', monthStart);
 
     const monthTotal = monthSales?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
 
-    // Estoque total
+    // Estoque total e custos (ração em kg, outros em unidade)
     const { data: products } = await supabase
       .from('products')
-      .select('estoque_kg, preco_por_kg')
+      .select('id, categoria, estoque_kg, estoque_unidade, preco_por_kg, preco_unitario, custo_por_kg, custo_saco, peso_saco_kg, custo_unitario')
       .eq('ativo', 1);
 
-    const totalEstoque = products?.reduce((sum, p) => sum + (p.estoque_kg || 0), 0) || 0;
-    const valorEstoque = products?.reduce((sum, p) => sum + ((p.estoque_kg || 0) * (p.preco_por_kg || 0)), 0) || 0;
+    const isRacao = (p) => !p.categoria || p.categoria === 'racao';
+
+    async function custoDasVendas(saleIds) {
+      if (!saleIds?.length) return 0;
+      const { data: items } = await supabase.from('sale_items').select('product_id, quantidade_kg, tipo_venda').in('sale_id', saleIds);
+      let custo = 0;
+      for (const item of items || []) {
+        const prod = products?.find(x => x.id === item.product_id);
+        if (!prod) continue;
+        const qty = item.quantidade_kg || 0;
+        if (!isRacao(prod)) {
+          custo += qty * (prod.custo_unitario || 0);
+        } else if (item.tipo_venda === 'saco') {
+          const peso = prod.peso_saco_kg || 1;
+          custo += (qty / peso) * (prod.custo_saco || 0);
+        } else {
+          custo += qty * (prod.custo_por_kg || 0);
+        }
+      }
+      return custo;
+    }
+    const todaySaleIds = (todaySales || []).map(s => s.id).filter(Boolean);
+    const monthSaleIds = (monthSales || []).map(s => s.id).filter(Boolean);
+    const custoDia = await custoDasVendas(todaySaleIds);
+    const custoMes = await custoDasVendas(monthSaleIds);
+    const lucroDia = todayTotal - custoDia;
+    const lucroMes = monthTotal - custoMes;
+
+    const totalEstoque = products?.filter(isRacao).reduce((sum, p) => sum + (p.estoque_kg || 0), 0) || 0;
+    const totalEstoqueUn = products?.filter(p => !isRacao(p)).reduce((sum, p) => sum + (p.estoque_unidade || 0), 0) || 0;
+    const valorEstoque = (products || []).reduce((sum, p) => {
+      if (isRacao(p)) return sum + ((p.estoque_kg || 0) * (p.preco_por_kg || 0));
+      return sum + ((p.estoque_unidade || 0) * (p.preco_unitario || 0));
+    }, 0);
 
     // Despesas pendentes
     const { data: expenses } = await supabase
@@ -370,14 +402,17 @@ app.get('/api/dashboard', async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    // Produtos com estoque baixo
-    const { data: estoqueBaixo } = await supabase
+    // Produtos com estoque baixo (ração: kg < 10; unidade: un < mínimo)
+    const { data: allProductsAlert } = await supabase
       .from('products')
-      .select('nome, estoque_kg, estoque_minimo_dias')
-      .eq('ativo', 1)
-      .lt('estoque_kg', 10)
-      .order('estoque_kg')
-      .limit(5);
+      .select('id, nome, marca, categoria, estoque_kg, estoque_unidade, estoque_minimo_dias, estoque_minimo_unidade')
+      .eq('ativo', 1);
+    const estoqueBaixo = (allProductsAlert || [])
+      .filter(p => isRacao(p) ? (p.estoque_kg || 0) < 10 : (p.estoque_unidade ?? 0) < (p.estoque_minimo_unidade || 1))
+      .slice(0, 10)
+      .map(p => isRacao(p)
+        ? { id: p.id, nome: p.nome, marca: p.marca, tipo_estoque: 'kg', estoque_kg: p.estoque_kg, estoque_unidade: null, estoque_minimo_dias: p.estoque_minimo_dias || 7 }
+        : { id: p.id, nome: p.nome, marca: p.marca, tipo_estoque: 'un', estoque_kg: null, estoque_unidade: p.estoque_unidade ?? 0, estoque_minimo_unidade: p.estoque_minimo_unidade || 0 });
 
     // Vendas por pagamento
     const payments = {};
@@ -387,12 +422,16 @@ app.get('/api/dashboard', async (req, res) => {
     });
 
     res.json({
-      // Formato que o frontend espera
       faturamento_dia: todayTotal,
       vendas_dia: todayCount,
       ticket_medio: ticketMedio,
       faturamento_mes: monthTotal,
+      custo_dia: custoDia,
+      custo_mes: custoMes,
+      lucro_dia: lucroDia,
+      lucro_mes: lucroMes,
       estoque_total_kg: totalEstoque,
+      estoque_total_unidade: totalEstoqueUn,
       valor_estoque: valorEstoque,
       total_produtos: products?.length || 0,
       despesas_pendentes: despesasPendentes,
@@ -400,6 +439,7 @@ app.get('/api/dashboard', async (req, res) => {
       meta_percent: metaAtingida,
       pagamentos: payments,
       ultimas_vendas: ultimasVendas || [],
+      alertas_estoque: estoqueBaixo || [],
       estoque_baixo: estoqueBaixo || [],
       top_produtos: []
     });

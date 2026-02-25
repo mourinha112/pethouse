@@ -52,7 +52,12 @@ export default function Dashboard() {
     vendas_dia: data?.vendas_dia || 0,
     ticket_medio: data?.ticket_medio || 0,
     faturamento_mes: data?.faturamento_mes || 0,
+    custo_dia: data?.custo_dia || 0,
+    custo_mes: data?.custo_mes || 0,
+    lucro_dia: data?.lucro_dia ?? 0,
+    lucro_mes: data?.lucro_mes ?? 0,
     estoque_total_kg: data?.estoque_total_kg || 0,
+    estoque_total_unidade: data?.estoque_total_unidade || 0,
     total_produtos: data?.total_produtos || 0,
     total_clientes: data?.total_clientes || 0,
     despesas_pendentes: data?.despesas_pendentes || 0,
@@ -115,13 +120,31 @@ export default function Dashboard() {
             <Box><Typography variant="caption" color="text.secondary">Faturamento Mes</Typography><Typography variant="h6">R$ {safeData.faturamento_mes.toFixed(2)}</Typography></Box>
           </CardContent>
         </Card>
+        <Card sx={{ borderLeft: '4px solid', borderLeftColor: safeData.lucro_dia >= 0 ? '#2E7D32' : '#c62828' }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {cardIcon(AttachMoney, safeData.lucro_dia >= 0 ? '#e8f5e9' : '#ffebee', safeData.lucro_dia >= 0 ? '#2E7D32' : '#c62828')}
+            <Box>
+              <Typography variant="caption" color="text.secondary">Lucro Hoje</Typography>
+              <Typography variant="h6" sx={{ color: safeData.lucro_dia >= 0 ? 'success.main' : 'error.main' }}>R$ {safeData.lucro_dia.toFixed(2)}</Typography>
+            </Box>
+          </CardContent>
+        </Card>
+        <Card sx={{ borderLeft: '4px solid', borderLeftColor: safeData.lucro_mes >= 0 ? '#2E7D32' : '#c62828' }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {cardIcon(AttachMoney, safeData.lucro_mes >= 0 ? '#e8f5e9' : '#ffebee', safeData.lucro_mes >= 0 ? '#2E7D32' : '#c62828')}
+            <Box>
+              <Typography variant="caption" color="text.secondary">Lucro Mes</Typography>
+              <Typography variant="h6" sx={{ color: safeData.lucro_mes >= 0 ? 'success.main' : 'error.main' }}>R$ {safeData.lucro_mes.toFixed(2)}</Typography>
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 2 }}>
         <Card>
           <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {cardIcon(Warehouse, '#e8eaf6', '#5C6BC0')}
-            <Box><Typography variant="caption" color="text.secondary">Estoque Total</Typography><Typography variant="h6">{safeData.estoque_total_kg.toFixed(0)} kg</Typography></Box>
+            <Box><Typography variant="caption" color="text.secondary">Estoque Total</Typography><Typography variant="h6">{safeData.estoque_total_kg > 0 || safeData.estoque_total_unidade > 0 ? [safeData.estoque_total_kg > 0 && `${safeData.estoque_total_kg.toFixed(0)} kg`, safeData.estoque_total_unidade > 0 && `${safeData.estoque_total_unidade} un.`].filter(Boolean).join(' + ') : '0 kg'}</Typography></Box>
           </CardContent>
         </Card>
         <Card>
@@ -216,9 +239,12 @@ export default function Dashboard() {
             {safeData.alertas_estoque.length === 0 ? <Typography color="success.main">Estoque OK!</Typography> : (
               <div className="alerts-list">
                 {safeData.alertas_estoque.slice(0, 4).map(alert => (
-                  <div key={alert.product_id} className="alert-item">
+                  <div key={alert.id} className="alert-item">
                     <Warning className="alert-icon" sx={{ fontSize: 18 }} />
-                    <div className="alert-text"><strong>{alert.nome}</strong> ({alert.marca})<br />{alert.estoque_kg.toFixed(1)}kg restante — <strong>{alert.dias_restantes} dias</strong></div>
+                    <div className="alert-text">
+                      <strong>{alert.nome}</strong> ({alert.marca})<br />
+                      {alert.tipo_estoque === 'un' ? `${alert.estoque_unidade ?? 0} un. restante` : `${(alert.estoque_kg ?? 0).toFixed(1)} kg restante`}
+                    </div>
                   </div>
                 ))}
               </div>
