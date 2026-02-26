@@ -11,7 +11,6 @@ import {
   AttachMoney,
   BarChart,
   Settings,
-  Star,
   Warning,
   Person,
   Logout,
@@ -59,7 +58,7 @@ export default function Sidebar({ user, onLogout }) {
   return (
     <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-mobile-open' : ''}`}>
       <div className="sidebar-brand">
-        <div className="sidebar-brand-icon"><Star sx={{ fontSize: 26 }} /></div>
+        <div className="sidebar-brand-icon"><img src="/logo.png" alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} /></div>
         <div className="sidebar-brand-text">
           <span className="sidebar-brand-name">PetShop</span>
           <span className="sidebar-brand-sub">Sistema de Gestao</span>
