@@ -247,6 +247,7 @@ export default function Sales() {
         client_id: selectedClient || null,
         forma_pagamento: paymentMethod,
         desconto: discountValue,
+        valor_total: finalTotal,
       });
 
       const receiptData = {

@@ -583,12 +583,18 @@ export default async function handler(req, res) {
     if (url === '/api/sales' && method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       const { items, ...saleData } = body;
-      
+
+      // Garantir que valor_total existe - calcular dos itens se não enviado
+      if (!saleData.valor_total && items && items.length > 0) {
+        const subtotalItens = items.reduce((sum, it) => sum + (it.subtotal || 0), 0);
+        saleData.valor_total = subtotalItens - (saleData.desconto || 0);
+      }
+
       const { data: newSale, error: saleError } = await supabase
         .from('sales')
         .insert([saleData])
         .select();
-      
+
       if (saleError) throw saleError;
       const saleId = newSale[0].id;
 
