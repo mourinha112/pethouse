@@ -5,7 +5,13 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/api/cashier/:path*", "destination": "/api/index" },
+    { "source": "/api/cashier", "destination": "/api/index" },
+    { "source": "/api/expenses/:path*", "destination": "/api/index" },
+    { "source": "/api/expenses", "destination": "/api/index" },
+    { "source": "/api/clients", "destination": "/api/index" },
+    { "source": "/api/clients/:path*", "destination": "/api/index" },
+    { "source": "/api/settings", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

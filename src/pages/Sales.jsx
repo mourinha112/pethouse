@@ -272,7 +272,8 @@ export default function Sales() {
       loadTodaySales();
       if (showHistory) loadHistorySales();
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message;
+      const rawErr = err.response?.data?.error;
+      const errorMsg = typeof rawErr === 'string' ? rawErr : (rawErr?.message || err.message);
       // Fechar modal e mostrar toast de erro para o usuario poder corrigir
       setShowPaymentModal(false);
       showToast(errorMsg);
