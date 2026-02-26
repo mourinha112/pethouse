@@ -12,6 +12,7 @@ const TIPOS = [
 
 const CATEGORIAS = [
   { value: 'racao', label: 'Ração' },
+  { value: 'sache', label: 'Sachê' },
   { value: 'medicamento', label: 'Medicamento' },
   { value: 'coleira', label: 'Coleira' },
   { value: 'roupinha', label: 'Roupinha' },
@@ -196,7 +197,7 @@ export default function Products() {
               </div>
               <div className="form-row">
                 <div className="form-group"><label>Marca</label><input name="marca" value={form.marca} onChange={handleChange} placeholder="Ex: Royal Canin" /></div>
-                {isRacao(form.categoria) && (
+                {(isRacao(form.categoria) || form.categoria === 'sache') && (
                   <div className="form-group"><label>Tipo (pet)</label><select name="tipo" value={form.tipo} onChange={handleChange}>{TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
                 )}
               </div>
@@ -273,7 +274,7 @@ export default function Products() {
                     <td><strong>{p.nome}</strong></td>
                     <td>{p.marca}</td>
                     <td>{catLabel(p.categoria)}</td>
-                    <td className="capitalize">{isR ? (p.tipo || '-') : '-'}</td>
+                    <td className="capitalize">{(isR || p.categoria === 'sache') ? (p.tipo || '-') : '-'}</td>
                     <td>{isR ? `${p.peso_saco_kg}kg` : '-'}</td>
                     <td>{isR ? `R$ ${(p.custo_por_kg || 0).toFixed(2)}` : '-'}</td>
                     <td>{isR ? `R$ ${(p.preco_por_kg || 0).toFixed(2)}` : '-'}</td>
