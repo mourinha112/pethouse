@@ -26,6 +26,7 @@ const emptyForm = {
   peso_saco_kg: '', custo_saco: '', margem_percentual: '', margem_saco: '', preco_saco_fechado: '',
   estoque_kg: '', estoque_minimo_dias: '7',
   custo_unitario: '', preco_unitario: '', estoque_unidade: '', estoque_minimo_unidade: '0',
+  custo_pacote: '', unidades_pacote: '', margem_unitaria: '',
 };
 
 function isRacao(cat) { return !cat || cat === 'racao'; }
@@ -59,6 +60,10 @@ export default function Products() {
   const preco_por_kg = custo_por_kg * (1 + (form.margem_percentual || 0) / 100);
   const preco_saco_calculado = form.margem_saco ? form.custo_saco * (1 + (form.margem_saco || 0) / 100) : 0;
 
+  // Cálculo automático para produtos por unidade (pacote)
+  const custoUnitCalc = (form.custo_pacote > 0 && form.unidades_pacote > 0) ? (form.custo_pacote / form.unidades_pacote) : 0;
+  const precoUnitCalc = custoUnitCalc > 0 && form.margem_unitaria > 0 ? custoUnitCalc * (1 + form.margem_unitaria / 100) : 0;
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.nome.trim()) { toast.error('Nome do produto obrigatório'); return; }
@@ -84,8 +89,8 @@ export default function Products() {
         preco_saco_fechado: isR ? (form.margem_saco ? preco_saco_calculado : parseFloat(form.preco_saco_fechado) || 0) : 0,
         estoque_kg: isR ? parseFloat(form.estoque_kg) || 0 : 0,
         estoque_minimo_dias: isR ? parseInt(form.estoque_minimo_dias) || 7 : 7,
-        custo_unitario: !isR ? parseFloat(form.custo_unitario) || 0 : 0,
-        preco_unitario: !isR ? parseFloat(form.preco_unitario) || 0 : 0,
+        custo_unitario: !isR ? (custoUnitCalc > 0 ? custoUnitCalc : parseFloat(form.custo_unitario) || 0) : 0,
+        preco_unitario: !isR ? (precoUnitCalc > 0 ? precoUnitCalc : parseFloat(form.preco_unitario) || 0) : 0,
         estoque_unidade: !isR ? parseInt(form.estoque_unidade, 10) || 0 : 0,
         estoque_minimo_unidade: !isR ? parseInt(form.estoque_minimo_unidade, 10) || 0 : 0,
       };
@@ -225,8 +230,19 @@ export default function Products() {
               ) : (
                 <>
                   <div className="form-row">
-                    <div className="form-group"><label>Custo unitário (R$)</label><input name="custo_unitario" type="number" step="0.01" value={form.custo_unitario} onChange={handleChange} placeholder="5.00" /></div>
-                    <div className="form-group"><label>Preço unitário (R$) *</label><input name="preco_unitario" type="number" step="0.01" value={form.preco_unitario} onChange={handleChange} placeholder="12.00" required={!isRacao(form.categoria)} /></div>
+                    <div className="form-group"><label>Custo do Pacote (R$)</label><input name="custo_pacote" type="number" step="0.01" value={form.custo_pacote} onChange={handleChange} placeholder="Ex: 25.00" /></div>
+                    <div className="form-group"><label>Un. por Pacote</label><input name="unidades_pacote" type="number" min="1" value={form.unidades_pacote} onChange={handleChange} placeholder="Ex: 5" /></div>
+                    <div className="form-group"><label>Margem (%)</label><input name="margem_unitaria" type="number" step="0.1" value={form.margem_unitaria} onChange={handleChange} placeholder="Ex: 50" /></div>
+                  </div>
+                  {custoUnitCalc > 0 && (
+                    <div className="form-row form-calculated">
+                      <div className="form-group"><label>Custo un. (auto)</label><input value={`R$ ${custoUnitCalc.toFixed(2)}`} readOnly className="input-readonly" /></div>
+                      {precoUnitCalc > 0 && <div className="form-group"><label>Preço un. (auto)</label><input value={`R$ ${precoUnitCalc.toFixed(2)}`} readOnly className="input-readonly" /></div>}
+                    </div>
+                  )}
+                  <div className="form-row">
+                    <div className="form-group"><label>Custo unitário (R$)</label><input name="custo_unitario" type="number" step="0.01" value={custoUnitCalc > 0 ? custoUnitCalc.toFixed(2) : form.custo_unitario} onChange={handleChange} placeholder="5.00" readOnly={custoUnitCalc > 0} className={custoUnitCalc > 0 ? 'input-readonly' : ''} /></div>
+                    <div className="form-group"><label>Preço unitário (R$) *</label><input name="preco_unitario" type="number" step="0.01" value={precoUnitCalc > 0 ? precoUnitCalc.toFixed(2) : form.preco_unitario} onChange={handleChange} placeholder="12.00" required={!isRacao(form.categoria)} readOnly={precoUnitCalc > 0} className={precoUnitCalc > 0 ? 'input-readonly' : ''} /></div>
                   </div>
                   <div className="form-row">
                     {!editId && <div className="form-group"><label>Estoque inicial (un.)</label><input name="estoque_unidade" type="number" min="0" value={form.estoque_unidade} onChange={handleChange} placeholder="0" /></div>}

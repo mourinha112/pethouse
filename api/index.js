@@ -236,7 +236,7 @@ export default async function handler(req, res) {
         let despesasPendentes = 0;
         try {
           const { data: noMes } = await supabase.from('expenses').select('id, valor, pago').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim);
-          const { data: rec } = await supabase.from('expenses').select('id, valor, pago').or('recorrente.eq.1,recorrente.eq.true');
+          const { data: rec } = await supabase.from('expenses').select('id, valor, pago').or('recorrente.eq.1,recorrente.is.true');
           const seen = new Set((noMes || []).map(e => e.id));
           const recUniq = (rec || []).filter(e => !seen.has(e.id) && seen.add(e.id));
           const todasDoMes = [...(noMes || []), ...recUniq];
@@ -679,7 +679,7 @@ export default async function handler(req, res) {
         let noMes = [];
         let rec = [];
         try { const { data } = await supabase.from('expenses').select('id, valor, pago, categoria').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim); noMes = data || []; } catch (_) {}
-        try { const { data } = await supabase.from('expenses').select('id, valor, pago, categoria').or('recorrente.eq.1,recorrente.eq.true'); rec = data || []; } catch (_) {}
+        try { const { data } = await supabase.from('expenses').select('id, valor, pago, categoria').or('recorrente.eq.1,recorrente.is.true'); rec = data || []; } catch (_) {}
         const seen = new Set(noMes.map(e => e.id));
         const recUniq = rec.filter(e => !seen.has(e.id) && seen.add(e.id));
         const items = [...noMes, ...recUniq];
@@ -709,7 +709,7 @@ export default async function handler(req, res) {
           let noMes = [];
           let rec = [];
           try { const { data } = await supabase.from('expenses').select('*').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim).order('data_vencimento', { ascending: true }); noMes = data || []; } catch (_) {}
-          try { const { data } = await supabase.from('expenses').select('*').or('recorrente.eq.1,recorrente.eq.true').order('data_vencimento', { ascending: true }); rec = data || []; } catch (_) {}
+          try { const { data } = await supabase.from('expenses').select('*').or('recorrente.eq.1,recorrente.is.true').order('data_vencimento', { ascending: true }); rec = data || []; } catch (_) {}
           const seen = new Set(noMes.map(e => e.id));
           const noMesDesc = new Set(noMes.map(e => `${e.descricao}|${e.categoria || ''}`));
           const recUniq = rec.filter(e => {
