@@ -72,7 +72,7 @@ export default function Products() {
       if (!form.peso_saco_kg || parseFloat(form.peso_saco_kg) <= 0) { toast.error('Peso do saco obrigatório'); return; }
       if (!form.custo_saco || parseFloat(form.custo_saco) <= 0) { toast.error('Custo do saco obrigatório'); return; }
     } else {
-      if (!form.preco_unitario || parseFloat(form.preco_unitario) <= 0) { toast.error('Preço unitário obrigatório'); return; }
+      if ((parseFloat(form.preco_unitario) || 0) <= 0 && precoUnitCalc <= 0) { toast.error('Preço unitário obrigatório'); return; }
     }
     try {
       const payload = {
@@ -242,7 +242,7 @@ export default function Products() {
                   )}
                   <div className="form-row">
                     <div className="form-group"><label>Custo unitário (R$)</label><input name="custo_unitario" type="number" step="0.01" value={custoUnitCalc > 0 ? custoUnitCalc.toFixed(2) : form.custo_unitario} onChange={handleChange} placeholder="5.00" readOnly={custoUnitCalc > 0} className={custoUnitCalc > 0 ? 'input-readonly' : ''} /></div>
-                    <div className="form-group"><label>Preço unitário (R$) *</label><input name="preco_unitario" type="number" step="0.01" value={precoUnitCalc > 0 ? precoUnitCalc.toFixed(2) : form.preco_unitario} onChange={handleChange} placeholder="12.00" required={!isRacao(form.categoria)} readOnly={precoUnitCalc > 0} className={precoUnitCalc > 0 ? 'input-readonly' : ''} /></div>
+                    <div className="form-group"><label>Preço unitário (R$) *</label><input name="preco_unitario" type="number" step="0.01" value={precoUnitCalc > 0 ? precoUnitCalc.toFixed(2) : form.preco_unitario} onChange={handleChange} placeholder="12.00" readOnly={precoUnitCalc > 0} className={precoUnitCalc > 0 ? 'input-readonly' : ''} /></div>
                   </div>
                   <div className="form-row">
                     {!editId && <div className="form-group"><label>Estoque inicial (un.)</label><input name="estoque_unidade" type="number" min="0" value={form.estoque_unidade} onChange={handleChange} placeholder="0" /></div>}
