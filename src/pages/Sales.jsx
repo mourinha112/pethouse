@@ -50,6 +50,7 @@ export default function Sales() {
   const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
   const [kgModal, setKgModal] = useState(null);
   const [kgInput, setKgInput] = useState('');
+  const [kgInputMode, setKgInputMode] = useState('kg');
   const [toast, setToast] = useState(null);
   const searchRef = useRef(null);
   const receiptRef = useRef(null);
@@ -117,6 +118,7 @@ export default function Sales() {
   function openKgModal(product) {
     setKgModal(product);
     setKgInput('');
+    setKgInputMode('kg');
     setSearchTerm('');
     setSearchResults([]);
     setTimeout(() => kgInputRef.current?.focus(), 100);
@@ -131,11 +133,20 @@ export default function Sales() {
 
   // Confirmar KG
   function confirmKg() {
-    const kg = parseFloat(kgInput);
-    if (!kg || kg <= 0 || !kgModal) return;
+    if (!kgModal) return;
+    let kg;
+    if (kgInputMode === 'reais') {
+      const reais = parseFloat(kgInput);
+      if (!reais || reais <= 0 || !kgModal.preco_por_kg) return;
+      kg = Math.round((reais / kgModal.preco_por_kg) * 1000) / 1000;
+    } else {
+      kg = parseFloat(kgInput);
+    }
+    if (!kg || kg <= 0) return;
     addToCart(kgModal, 'kg', kg);
     setKgModal(null);
     setKgInput('');
+    setKgInputMode('kg');
     focusSearch();
   }
 
@@ -604,22 +615,35 @@ export default function Sales() {
             <div className="pdv-kg-modal-product"><strong>{kgModal.nome}</strong><span>{kgModal.marca}</span></div>
             <div className="pdv-kg-modal-price">R$ {kgModal.preco_por_kg.toFixed(2)} / kg</div>
             <div className="pdv-kg-modal-stock">Estoque disponivel: {kgModal.estoque_kg.toFixed(1)} kg</div>
+            <div className="pdv-kg-mode-tabs">
+              <button className={`pdv-kg-mode-tab ${kgInputMode === 'kg' ? 'active' : ''}`} onClick={() => { setKgInputMode('kg'); setKgInput(''); setTimeout(() => kgInputRef.current?.focus(), 50); }}>Por KG</button>
+              <button className={`pdv-kg-mode-tab ${kgInputMode === 'reais' ? 'active' : ''}`} onClick={() => { setKgInputMode('reais'); setKgInput(''); setTimeout(() => kgInputRef.current?.focus(), 50); }}>Por R$</button>
+            </div>
             <div className="pdv-kg-modal-input-wrap">
-              <label>Quantos KG?</label>
-              <input ref={kgInputRef} type="number" className="pdv-kg-modal-input" placeholder="Ex: 2.5"
-                step="0.1" min="0.1" value={kgInput} onChange={e => setKgInput(e.target.value)}
+              <label>{kgInputMode === 'kg' ? 'Quantos KG?' : 'Quanto em R$?'}</label>
+              <input ref={kgInputRef} type="number" className="pdv-kg-modal-input"
+                placeholder={kgInputMode === 'kg' ? 'Ex: 2.5' : 'Ex: 30.00'}
+                step={kgInputMode === 'kg' ? '0.1' : '0.01'} min="0.01" value={kgInput} onChange={e => setKgInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') confirmKg(); if (e.key === 'Escape') closeKgModal(); }} />
             </div>
             {parseFloat(kgInput) > 0 && (
               <div className="pdv-kg-modal-preview">
-                <span>{kgInput}kg x R$ {kgModal.preco_por_kg.toFixed(2)}</span>
-                <strong>= R$ {(parseFloat(kgInput) * kgModal.preco_por_kg).toFixed(2)}</strong>
+                {kgInputMode === 'kg' ? (
+                  <><span>{kgInput}kg x R$ {kgModal.preco_por_kg.toFixed(2)}</span><strong>= R$ {(parseFloat(kgInput) * kgModal.preco_por_kg).toFixed(2)}</strong></>
+                ) : (
+                  <><span>R$ {kgInput} / R$ {kgModal.preco_por_kg.toFixed(2)}</span><strong>= {(parseFloat(kgInput) / kgModal.preco_por_kg).toFixed(3)} kg</strong></>
+                )}
               </div>
             )}
             <div className="pdv-kg-modal-quick">
-              {[0.5, 1, 2, 3, 5, 10].map(v => (
-                <button key={v} className="pdv-kg-modal-quick-btn" onClick={() => setKgInput(String(v))}>{v}kg</button>
-              ))}
+              {kgInputMode === 'kg'
+                ? [0.5, 1, 2, 3, 5, 10].map(v => (
+                    <button key={v} className="pdv-kg-modal-quick-btn" onClick={() => setKgInput(String(v))}>{v}kg</button>
+                  ))
+                : [5, 10, 15, 20, 30, 50].map(v => (
+                    <button key={v} className="pdv-kg-modal-quick-btn" onClick={() => setKgInput(String(v))}>R${v}</button>
+                  ))
+              }
             </div>
             <button className="pdv-confirm-btn" onClick={confirmKg} disabled={!parseFloat(kgInput) || parseFloat(kgInput) <= 0}>
               ADICIONAR AO CARRINHO
