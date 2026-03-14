@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Pet House - Sistema de Gestao para Pet Shops</title>
+  <meta name="description" content="Sistema completo de gestao para pet shops e lojas de racao. PDV, estoque, financeiro, relatorios e muito mais. Pague uma vez, use para sempre.">
+  <link rel="icon" href="logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, sans-serif; color: #fff; overflow-x: hidden; background: #1a0000; }
+
+    /* ===== HERO ===== */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(165deg, #B60100 0%, #8B0000 40%, #1a0000 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -30%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-logo {
+      width: 120px;
+      height: 120px;
+      border-radius: 28px;
+      margin-bottom: 1.5rem;
+      filter: drop-shadow(0 8px 32px rgba(0,0,0,0.4));
+      animation: fadeUp 0.8s ease-out;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 0.4rem 1.2rem;
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.8s ease-out 0.1s both;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      max-width: 700px;
+      margin-bottom: 1.25rem;
+      animation: fadeUp 0.8s ease-out 0.2s both;
+    }
+    .hero h1 span {
+      display: block;
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: rgba(255,255,255,0.75);
+      max-width: 520px;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+      animation: fadeUp 0.8s ease-out 0.3s both;
+    }
+
+    /* ===== VIDEO ===== */
+    .video-section {
+      padding: 0 1.5rem 4rem;
+      background: #1a0000;
+      display: flex;
+      justify-content: center;
+    }
+    .video-wrapper {
+      max-width: 800px;
+      width: 100%;
+      margin-top: -4rem;
+      position: relative;
+      z-index: 2;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 2px solid rgba(182,1,0,0.3);
+      box-shadow: 0 20px 80px rgba(182,1,0,0.25), 0 0 0 1px rgba(255,255,255,0.05);
+      background: #111;
+      aspect-ratio: 16/9;
+    }
+    .video-wrapper iframe,
+    .video-wrapper video {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a0000, #2a0000);
+      cursor: pointer;
+      gap: 1rem;
+    }
+    .video-placeholder .play-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #B60100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 0 0 0 rgba(182,1,0,0.4);
+      animation: pulse 2s infinite;
+    }
+    .video-placeholder:hover .play-btn {
+      transform: scale(1.1);
+    }
+    .video-placeholder .play-btn svg { margin-left: 4px; }
+    .video-placeholder span {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.5);
+      font-weight: 500;
+    }
+
+    /* ===== CTA SECTION ===== */
+    .cta-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      animation: fadeUp 0.8s ease-out 0.4s both;
+    }
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #fff;
+      color: #B60100;
+      font-size: 1.15rem;
+      font-weight: 800;
+      padding: 1rem 2.5rem;
+      border-radius: 100px;
+      text-decoration: none;
+      transition: all 0.3s;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    }
+    .btn-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    }
+    .btn-cta-green {
+      background: #25D366;
+      color: #fff;
+    }
+    .btn-cta-green:hover { background: #1fba59; }
+    .cta-price-tag {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.6);
+    }
+    .cta-price-tag strong {
+      font-size: 1rem;
+      color: #FFD700;
+    }
+
+    /* ===== PRICING BANNER ===== */
+    .pricing {
+      background: #1a0000;
+      padding: 5rem 1.5rem;
+      text-align: center;
+    }
+    .pricing-card {
+      max-width: 480px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, rgba(182,1,0,0.15), rgba(182,1,0,0.05));
+      border: 1px solid rgba(182,1,0,0.25);
+      border-radius: 24px;
+      padding: 3rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .pricing-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #B60100, #FFD700, #B60100);
+    }
+    .pricing-tag {
+      display: inline-block;
+      background: #B60100;
+      color: #fff;
+      padding: 0.35rem 1.2rem;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+    .pricing-old {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.4);
+      text-decoration: line-through;
+      margin-bottom: 0.25rem;
+    }
+    .pricing-value {
+      font-size: clamp(3rem, 8vw, 4.5rem);
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+    .pricing-value small { font-size: 0.4em; font-weight: 600; vertical-align: super; }
+    .pricing-label {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 2rem;
+    }
+    .pricing-features {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+    .pricing-features li {
+      padding: 0.6rem 0;
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .pricing-features li svg { flex-shrink: 0; color: #22c55e; }
+    .pricing-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 1.1rem;
+      background: #B60100;
+      color: #fff;
+      font-size: 1.15rem;
+      font-weight: 800;
+      border-radius: 16px;
+      text-decoration: none;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+    .pricing-btn:hover { background: #9a0100; transform: translateY(-1px); }
+    .pricing-guarantee {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* ===== FEATURES ===== */
+    .features {
+      background: #111;
+      padding: 5rem 1.5rem;
+    }
+    .features-title {
+      text-align: center;
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+    }
+    .features-sub {
+      text-align: center;
+      color: rgba(255,255,255,0.5);
+      font-size: 1rem;
+      margin-bottom: 3rem;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1.75rem;
+      transition: all 0.3s;
+    }
+    .feature-card:hover {
+      background: rgba(182,1,0,0.08);
+      border-color: rgba(182,1,0,0.2);
+      transform: translateY(-2px);
+    }
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.5;
+    }
+
+    /* ===== BENEFITS ===== */
+    .benefits {
+      background: #1a0000;
+      padding: 5rem 1.5rem;
+    }
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem;
+      max-width: 900px;
+      margin: 3rem auto 0;
+    }
+    .benefit-item {
+      text-align: center;
+    }
+    .benefit-number {
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+    .benefit-label {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 0.25rem;
+    }
+
+    /* ===== FAQ ===== */
+    .faq {
+      background: #111;
+      padding: 5rem 1.5rem;
+    }
+    .faq-list {
+      max-width: 640px;
+      margin: 2.5rem auto 0;
+    }
+    .faq-item {
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .faq-q {
+      width: 100%;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 1.25rem 0;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: inherit;
+    }
+    .faq-q:hover { color: #FFD700; }
+    .faq-q svg { flex-shrink: 0; transition: transform 0.3s; }
+    .faq-q[aria-expanded="true"] svg { transform: rotate(45deg); }
+    .faq-a {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .faq-a.open {
+      max-height: 200px;
+      padding-bottom: 1.25rem;
+    }
+    .faq-a p {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.6;
+    }
+
+    /* ===== FINAL CTA ===== */
+    .final-cta {
+      background: linear-gradient(165deg, #B60100, #8B0000);
+      padding: 5rem 1.5rem;
+      text-align: center;
+    }
+    .final-cta h2 {
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 900;
+      margin-bottom: 1rem;
+    }
+    .final-cta p {
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 2rem;
+      font-size: 1.05rem;
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0a0a0a;
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.25);
+    }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(182,1,0,0.5); }
+      70% { box-shadow: 0 0 0 20px rgba(182,1,0,0); }
+      100% { box-shadow: 0 0 0 0 rgba(182,1,0,0); }
+    }
+
+    /* ===== SCROLL ANIMATIONS ===== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 640px) {
+      .hero { padding: 3rem 1.25rem 5rem; }
+      .hero-logo { width: 90px; height: 90px; border-radius: 22px; }
+      .pricing-card { padding: 2rem 1.5rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .benefits-grid { grid-template-columns: 1fr 1fr; }
+      .btn-cta { font-size: 1rem; padding: 0.9rem 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <img src="logo.png" alt="The Pet House" class="hero-logo">
+    <div class="hero-badge">Sistema #1 para Pet Shops</div>
+    <h1>Pare de perder dinheiro<br>com controle no papel<span>Gerencie seu pet shop inteiro em um so lugar.</span></h1>
+    <p class="hero-sub">PDV completo, controle de estoque, financeiro, relatorios e muito mais. Tudo que voce precisa para vender mais e lucrar de verdade.</p>
+    <div class="cta-row">
+      <a href="#preco" class="btn-cta">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Quero comecar agora
+      </a>
+      <div class="cta-price-tag">
+        <strong>R$ 180,00</strong> pagamento unico &bull; acesso vitalicio
+      </div>
+    </div>
+  </section>
+
+  <!-- VIDEO -->
+  <section class="video-section">
+    <div class="video-wrapper">
+      <div class="video-placeholder" id="videoPlaceholder">
+        <div class="play-btn">
+          <svg width="32" height="32" fill="#fff" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
+        </div>
+        <span>Veja o sistema funcionando</span>
+      </div>
+      <!-- SUBSTITUIR: cole o iframe do YouTube/Vimeo aqui -->
+      <!-- <iframe src="https://www.youtube.com/embed/SEU_VIDEO_ID" allowfullscreen></iframe> -->
+    </div>
+  </section>
+
+  <!-- BENEFICIOS RAPIDOS -->
+  <section class="benefits">
+    <h2 class="features-title reveal">Resultados reais para seu negocio</h2>
+    <div class="benefits-grid">
+      <div class="benefit-item reveal">
+        <div class="benefit-number">100%</div>
+        <div class="benefit-label">Online - acesse de qualquer lugar</div>
+      </div>
+      <div class="benefit-item reveal">
+        <div class="benefit-number">0</div>
+        <div class="benefit-label">Mensalidade - pague uma unica vez</div>
+      </div>
+      <div class="benefit-item reveal">
+        <div class="benefit-number">10+</div>
+        <div class="benefit-label">Funcionalidades completas</div>
+      </div>
+      <div class="benefit-item reveal">
+        <div class="benefit-number">24h</div>
+        <div class="benefit-label">Acesso liberado na hora</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="funcionalidades">
+    <h2 class="features-title reveal">Tudo que seu pet shop precisa</h2>
+    <p class="features-sub reveal">Cada funcionalidade foi pensada para facilitar o dia a dia de quem vive o varejo pet.</p>
+    <div class="features-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(22,163,106,0.12); color: #16a34a;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <h3>PDV Completo</h3>
+        <p>Venda por KG ou unidade, busca rapida de produtos, carrinho, desconto, escolha de cliente e impressao de comprovante.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(37,99,235,0.12); color: #2563eb;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <h3>Controle de Estoque</h3>
+        <p>Acompanhe estoque em KG e unidade em tempo real. Alertas automaticos quando o estoque esta acabando.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(245,158,11,0.12); color: #f59e0b;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <h3>Financeiro</h3>
+        <p>Despesas fixas e variaveis, contas a pagar, categorias, despesas recorrentes e controle de pagamento.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(139,92,246,0.12); color: #8b5cf6;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        </div>
+        <h3>Relatorios e Graficos</h3>
+        <p>DRE simplificado, faturamento diario/mensal, top produtos, lucro bruto e liquido, graficos interativos.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(236,72,153,0.12); color: #ec4899;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Clientes</h3>
+        <p>Cadastro com WhatsApp, tipo de pet, racao preferida. Vincule clientes as vendas para fidelizar.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(6,182,212,0.12); color: #06b6d4;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </div>
+        <h3>Controle de Caixa</h3>
+        <p>Abertura e fechamento de caixa, suprimento, sangria, historico de sessoes e conferencia de valores.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(34,197,94,0.12); color: #22c55e;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3>Produtos Inteligentes</h3>
+        <p>Cadastro com margem automatica, preco por KG e por saco, custo por pacote, ativacao/desativacao.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(251,146,60,0.12); color: #fb923c;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>Dashboard em Tempo Real</h3>
+        <p>Faturamento do dia e do mes, lucro, meta diaria com progresso, ultimas vendas e alertas de estoque.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(99,102,241,0.12); color: #6366f1;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <h3>Configuracoes</h3>
+        <p>Meta diaria, taxa da maquininha, gestao de usuarios com niveis de acesso (admin/operador).</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="pricing" id="preco">
+    <div class="pricing-card reveal">
+      <div class="pricing-tag">Oferta de lancamento</div>
+      <div class="pricing-old">De R$ 497,00</div>
+      <div class="pricing-value"><small>R$</small>180</div>
+      <div class="pricing-label">Pagamento unico &bull; Acesso vitalicio</div>
+      <ul class="pricing-features">
+        <li>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Sistema completo com todas as funcionalidades
+        </li>
+        <li>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Acesso online de qualquer dispositivo
+        </li>
+        <li>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Sem mensalidade, sem taxa extra
+        </li>
+        <li>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Atualizacoes inclusas
+        </li>
+        <li>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Suporte via WhatsApp
+        </li>
+        <li>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Dados 100% seus, hospedagem inclusa
+        </li>
+      </ul>
+      <a href="#" class="pricing-btn" id="buyBtn">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 0 0 .613.613l4.458-1.495A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.94 9.94 0 0 1-5.39-1.584l-.386-.232-2.649.888.888-2.649-.232-.386A9.94 9.94 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+        Comprar agora por R$ 180,00
+      </a>
+      <p class="pricing-guarantee">Acesso imediato apos confirmacao do pagamento.</p>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="duvidas">
+    <h2 class="features-title reveal">Perguntas frequentes</h2>
+    <div class="faq-list">
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+          O sistema funciona no celular?
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-a"><p>Sim! O sistema e 100% responsivo. Funciona no celular, tablet e computador, direto pelo navegador. Nao precisa instalar nada.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+          Preciso pagar mensalidade?
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-a"><p>Nao! O pagamento e unico de R$ 180,00. Voce paga uma vez e usa para sempre, sem nenhuma cobranca recorrente.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+          Em quanto tempo recebo o acesso?
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-a"><p>O acesso e liberado imediatamente apos a confirmacao do pagamento. Voce recebe os dados de login pelo WhatsApp.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+          Meus dados ficam seguros?
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-a"><p>Sim. Seus dados ficam armazenados em servidores seguros na nuvem com criptografia. Somente voce tem acesso.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+          Posso usar em mais de um computador?
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-a"><p>Sim! Como e um sistema online, voce pode acessar de quantos dispositivos quiser ao mesmo tempo.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+          Tem suporte se eu precisar de ajuda?
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-a"><p>Sim! Oferecemos suporte direto via WhatsApp para tirar duvidas e ajudar na configuracao inicial.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final-cta">
+    <h2>Seu pet shop merece um sistema profissional.</h2>
+    <p>Chega de anotar venda em caderno. Comece hoje por apenas R$ 180,00.</p>
+    <a href="#preco" class="btn-cta btn-cta-green">
+      <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 0 0 .613.613l4.458-1.495A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.94 9.94 0 0 1-5.39-1.584l-.386-.232-2.649.888.888-2.649-.232-.386A9.94 9.94 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      Quero meu sistema agora
+    </a>
+  </section>
+
+  <footer>
+    <p>The Pet House &copy; 2026. Todos os direitos reservados.</p>
+  </footer>
+
+  <script>
+    // FAQ toggle
+    function toggleFaq(btn) {
+      const answer = btn.nextElementSibling;
+      const isOpen = answer.classList.contains('open');
+      // Close all
+      document.querySelectorAll('.faq-a').forEach(a => a.classList.remove('open'));
+      document.querySelectorAll('.faq-q').forEach(q => q.setAttribute('aria-expanded', 'false'));
+      if (!isOpen) {
+        answer.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>
