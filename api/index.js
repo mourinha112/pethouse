@@ -1123,7 +1123,7 @@ export default async function handler(req, res) {
         const saleIds = (sales || []).map(s => s.id).filter(Boolean);
         const { data: products } = await supabase
           .from('products')
-          .select('id, categoria, custo_por_kg, custo_saco, peso_saco_kg, custo_unitario')
+          .select('id, nome, categoria, custo_por_kg, custo_saco, peso_saco_kg, custo_unitario')
           .eq('ativo', 1);
 
         const isRacao = (p) => !p.categoria || p.categoria === 'racao';
