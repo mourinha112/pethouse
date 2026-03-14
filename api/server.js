@@ -803,6 +803,273 @@ genericTables.forEach(table => {
   });
 });
 
+// ========== REPORTS ==========
+
+// Custos fixos (alias /api/costs -> fixed_costs)
+app.get('/api/costs', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('fixed_costs').select('*').order('id');
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+app.post('/api/costs', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('fixed_costs').insert([req.body]).select();
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+app.delete('/api/costs/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('fixed_costs').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Reports - Resumo mensal
+app.get('/api/reports/summary', async (req, res) => {
+  try {
+    const mes = req.query.mes || new Date().toISOString().slice(0, 7);
+    const [y, m] = mes.split('-').map(Number);
+    const mesInicio = new Date(y, m - 1, 1).toISOString().split('T')[0];
+    const mesFim = new Date(y, m, 0).toISOString().split('T')[0];
+
+    // Vendas do mês
+    const { data: sales } = await supabase
+      .from('sales')
+      .select('id, total, forma_pagamento, created_at')
+      .gte('created_at', mesInicio)
+      .lte('created_at', mesFim + 'T23:59:59');
+
+    const faturamento_mes = (sales || []).reduce((s, v) => s + (v.total || 0), 0);
+    const total_vendas = (sales || []).length;
+
+    // Custo dos produtos vendidos
+    const saleIds = (sales || []).map(s => s.id).filter(Boolean);
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, categoria, custo_por_kg, custo_saco, peso_saco_kg, custo_unitario')
+      .eq('ativo', 1);
+
+    const isRacao = (p) => !p.categoria || p.categoria === 'racao';
+    let custo_produtos = 0;
+    if (saleIds.length > 0) {
+      const { data: items } = await supabase.from('sale_items').select('product_id, quantidade_kg, tipo_venda').in('sale_id', saleIds);
+      for (const item of items || []) {
+        const prod = (products || []).find(x => x.id === item.product_id);
+        if (!prod) continue;
+        const qty = item.quantidade_kg || 0;
+        if (!isRacao(prod)) {
+          custo_produtos += qty * (prod.custo_unitario || 0);
+        } else if (item.tipo_venda === 'saco') {
+          custo_produtos += (qty / (prod.peso_saco_kg || 1)) * (prod.custo_saco || 0);
+        } else {
+          custo_produtos += qty * (prod.custo_por_kg || 0);
+        }
+      }
+    }
+
+    const lucro_bruto = faturamento_mes - custo_produtos;
+
+    // Custos fixos
+    const { data: fixedCosts } = await supabase.from('fixed_costs').select('valor');
+    const custos_fixos = (fixedCosts || []).reduce((s, c) => s + (Number(c.valor) || 0), 0);
+
+    // Despesas do mês
+    const { data: expensesData } = await supabase
+      .from('expenses')
+      .select('valor, pago, categoria')
+      .gte('data_vencimento', mesInicio)
+      .lte('data_vencimento', mesFim);
+    const despesas_mes = (expensesData || []).reduce((s, e) => s + (Number(e.valor) || 0), 0);
+    const despesas_pagas = (expensesData || []).filter(e => e.pago).reduce((s, e) => s + (Number(e.valor) || 0), 0);
+
+    // Despesas por categoria
+    const despCat = {};
+    (expensesData || []).forEach(e => {
+      const c = e.categoria || 'outros';
+      despCat[c] = (despCat[c] || 0) + (Number(e.valor) || 0);
+    });
+    const despesas_por_categoria = Object.entries(despCat).map(([categoria, total]) => ({ categoria, total }));
+
+    // Taxa maquininha
+    const { data: taxaData } = await supabase.from('settings').select('value').eq('key', 'taxa_maquininha').single();
+    const taxa_maquininha = parseFloat(taxaData?.value || '0');
+    const vendas_cartao = (sales || []).filter(s => s.forma_pagamento === 'cartao' || s.forma_pagamento === 'debito' || s.forma_pagamento === 'credito');
+    const total_cartao = vendas_cartao.reduce((s, v) => s + (v.total || 0), 0);
+    const custo_maquininha = total_cartao * (taxa_maquininha / 100);
+
+    const lucro_liquido = lucro_bruto - custos_fixos - custo_maquininha - despesas_mes;
+
+    // Vendas por forma de pagamento
+    const pagMap = {};
+    (sales || []).forEach(s => {
+      const f = s.forma_pagamento || 'outros';
+      if (!pagMap[f]) pagMap[f] = { vendas: 0, total: 0 };
+      pagMap[f].vendas++;
+      pagMap[f].total += s.total || 0;
+    });
+    const vendas_por_pagamento = Object.entries(pagMap).map(([forma_pagamento, d]) => ({ forma_pagamento, ...d }));
+
+    // Top produtos do mês
+    let top_produtos = [];
+    if (saleIds.length > 0) {
+      const { data: allItems } = await supabase.from('sale_items').select('product_id, subtotal, quantidade_kg').in('sale_id', saleIds);
+      const prodMap = {};
+      (allItems || []).forEach(i => {
+        if (!prodMap[i.product_id]) prodMap[i.product_id] = { total: 0, qty: 0 };
+        prodMap[i.product_id].total += i.subtotal || 0;
+        prodMap[i.product_id].qty += i.quantidade_kg || 0;
+      });
+      const prodNames = {};
+      (products || []).forEach(p => { prodNames[p.id] = p; });
+      top_produtos = Object.entries(prodMap)
+        .map(([id, d]) => ({ id, nome: prodNames[id]?.nome || 'Desconhecido', total: d.total, quantidade: d.qty }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+    }
+
+    // Vendas por dia do mês (para gráfico)
+    const vendas_por_dia = [];
+    const diasNoMes = new Date(y, m, 0).getDate();
+    for (let d = 1; d <= diasNoMes; d++) {
+      const dia = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const vendasDia = (sales || []).filter(s => s.created_at && s.created_at.startsWith(dia));
+      vendas_por_dia.push({
+        dia: String(d).padStart(2, '0'),
+        data: dia,
+        vendas: vendasDia.length,
+        faturamento: vendasDia.reduce((s, v) => s + (v.total || 0), 0)
+      });
+    }
+
+    res.json({
+      mes,
+      faturamento_mes,
+      total_vendas,
+      custo_produtos,
+      lucro_bruto,
+      custos_fixos,
+      despesas_mes,
+      despesas_pagas,
+      despesas_por_categoria,
+      custo_maquininha,
+      taxa_maquininha,
+      lucro_liquido,
+      vendas_por_pagamento,
+      top_produtos,
+      vendas_por_dia,
+      ticket_medio: total_vendas > 0 ? faturamento_mes / total_vendas : 0,
+      margem_bruta: faturamento_mes > 0 ? (lucro_bruto / faturamento_mes) * 100 : 0,
+      margem_liquida: faturamento_mes > 0 ? (lucro_liquido / faturamento_mes) * 100 : 0,
+    });
+  } catch (error) {
+    console.error('Reports summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reports - Faturamento diário (últimos 30 dias)
+app.get('/api/reports/daily', async (req, res) => {
+  try {
+    const dias = parseInt(req.query.dias) || 30;
+    const dataInicio = new Date();
+    dataInicio.setDate(dataInicio.getDate() - dias);
+    const inicio = dataInicio.toISOString().split('T')[0];
+
+    const { data: sales } = await supabase
+      .from('sales')
+      .select('id, total, created_at')
+      .gte('created_at', inicio)
+      .order('created_at', { ascending: true });
+
+    const byDay = {};
+    (sales || []).forEach(s => {
+      const dia = s.created_at?.split('T')[0] || '';
+      if (!byDay[dia]) byDay[dia] = { data: dia, vendas: 0, faturamento: 0 };
+      byDay[dia].vendas++;
+      byDay[dia].faturamento += s.total || 0;
+    });
+
+    // Preencher dias sem vendas
+    const result = [];
+    const current = new Date(inicio);
+    const today = new Date();
+    while (current <= today) {
+      const dia = current.toISOString().split('T')[0];
+      result.push(byDay[dia] || { data: dia, vendas: 0, faturamento: 0 });
+      current.setDate(current.getDate() + 1);
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reports - Faturamento mensal (últimos 12 meses)
+app.get('/api/reports/monthly', async (req, res) => {
+  try {
+    const meses = parseInt(req.query.meses) || 12;
+    const dataInicio = new Date();
+    dataInicio.setMonth(dataInicio.getMonth() - meses);
+    dataInicio.setDate(1);
+    const inicio = dataInicio.toISOString().split('T')[0];
+
+    const { data: sales } = await supabase
+      .from('sales')
+      .select('id, total, created_at')
+      .gte('created_at', inicio)
+      .order('created_at', { ascending: true });
+
+    const byMonth = {};
+    (sales || []).forEach(s => {
+      const mes = s.created_at?.slice(0, 7) || '';
+      if (!byMonth[mes]) byMonth[mes] = { mes, vendas: 0, faturamento: 0 };
+      byMonth[mes].vendas++;
+      byMonth[mes].faturamento += s.total || 0;
+    });
+
+    // Preencher meses sem vendas
+    const result = [];
+    const current = new Date(dataInicio);
+    const now = new Date();
+    while (current <= now) {
+      const mes = current.toISOString().slice(0, 7);
+      result.push(byMonth[mes] || { mes, vendas: 0, faturamento: 0 });
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reports - Vendas detalhadas (com itens)
+app.get('/api/reports/sales-detail', async (req, res) => {
+  try {
+    const mes = req.query.mes || new Date().toISOString().slice(0, 7);
+    const [y, m] = mes.split('-').map(Number);
+    const mesInicio = new Date(y, m - 1, 1).toISOString().split('T')[0];
+    const mesFim = new Date(y, m, 0).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('sales')
+      .select('*, clients(nome), sale_items(*, products(nome, categoria))')
+      .gte('created_at', mesInicio)
+      .lte('created_at', mesFim + 'T23:59:59')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API rodando em http://localhost:${PORT}`);
 });
