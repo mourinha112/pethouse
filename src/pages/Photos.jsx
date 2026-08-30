@@ -11,7 +11,8 @@ import { Camera, Link2, Trash2, X, Check, ImageOff } from 'lucide-react';
  *
  * Nao existe base publica com as racoes que a loja vende (Golden, Premier,
  * Quatree e as marcas regionais nao estao em nenhum catalogo aberto), entao
- * a foto vem de voce: tira com o celular ou cola o link. O trabalho chato
+ * a foto vem de voce, de tres jeitos: arquivo que voce baixou no computador,
+ * foto tirada na hora com o celular, ou link colado. O trabalho chato
  * (encolher, cortar, tirar o fundo) o navegador faz sozinho aqui.
  */
 
@@ -34,6 +35,12 @@ function carregarImagem(arquivo) {
  * encosta na moldura e tem a cor parecida com os cantos. Funciona bem em
  * foto contra parede clara; em fundo baguncado, nao mexe no produto.
  */
+function cantosTransparentes(ctx, largura, altura) {
+  const px = ctx.getImageData(0, 0, largura, altura).data;
+  const cantos = [0, (largura - 1) * 4, (altura - 1) * largura * 4, (altura * largura - 1) * 4];
+  return cantos.every((c) => px[c + 3] < 12);
+}
+
 function limparFundo(ctx, largura, altura, tolerancia = 42) {
   const img = ctx.getImageData(0, 0, largura, altura);
   const px = img.data;
@@ -124,11 +131,14 @@ async function prepararFoto(arquivo, tirarFundo) {
   const ctx = tela.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0, lg, al);
 
-  let deuCerto = true;
   let corte = { x: 0, y: 0, w: lg, h: al };
 
-  if (tirarFundo) {
-    deuCerto = limparFundo(ctx, lg, al);
+  // PNG que ja veio recortado nao precisa de nada: so centralizar.
+  const jaRecortada = cantosTransparentes(ctx, lg, al);
+  let deuCerto = jaRecortada;
+
+  if (jaRecortada || tirarFundo) {
+    if (!jaRecortada) deuCerto = limparFundo(ctx, lg, al);
     if (deuCerto) {
       const caixa = caixaDoConteudo(ctx, lg, al);
       if (caixa) {
@@ -157,14 +167,17 @@ async function prepararFoto(arquivo, tirarFundo) {
   sctx.imageSmoothingQuality = 'high';
   sctx.drawImage(tela, corte.x, corte.y, corte.w, corte.h, (LADO - dw) / 2, (LADO - dh) / 2, dw, dh);
 
-  const transparente = tirarFundo && deuCerto;
+  const transparente = deuCerto;
   const blob = await new Promise((ok) => saida.toBlob(
     ok,
     transparente ? 'image/png' : 'image/jpeg',
     transparente ? undefined : 0.85,
   ));
 
-  return { blob, transparente, fundoLimpo: deuCerto, preview: saida.toDataURL(transparente ? 'image/png' : 'image/jpeg', 0.7) };
+  return {
+    blob, transparente, jaRecortada,
+    preview: saida.toDataURL(transparente ? 'image/png' : 'image/jpeg', 0.7),
+  };
 }
 
 export default function Photos() {
@@ -181,6 +194,7 @@ export default function Photos() {
   const [colando, setColando] = useState(null); // produto
   const [link, setLink] = useState('');
   const [removendo, setRemovendo] = useState(null);
+  const [arrastando, setArrastando] = useState(null);
 
   const inputRef = useRef(null);
   const alvoRef = useRef(null);
@@ -218,9 +232,15 @@ export default function Photos() {
   }
 
   async function aoEscolher(e) {
-    const arquivo = e.target.files?.[0];
-    const produto = alvoRef.current;
+    await tratarArquivo(e.target.files?.[0], alvoRef.current);
+  }
+
+  async function tratarArquivo(arquivo, produto) {
     if (!arquivo || !produto) return;
+    if (!arquivo.type.startsWith('image/')) {
+      toast.error('Isso nao e uma imagem');
+      return;
+    }
 
     setProcessando(produto.id);
     try {
@@ -314,9 +334,12 @@ export default function Photos() {
       </div>
 
       <div className="foto-aviso">
-        Tire a foto do saco <strong>contra uma parede clara e lisa</strong>. O sistema encolhe,
-        centraliza e tira o fundo sozinho. Se o fundo estiver bagunçado, ele desiste de recortar
-        e mantém a foto inteira — nunca come pedaço do produto.
+        Três jeitos de pôr a foto: <strong>arraste um arquivo</strong> em cima do quadrado,
+        clique em <strong>Foto</strong> para escolher do computador (ou tirar na hora, no celular),
+        ou <strong>cole o link</strong>. O sistema encolhe, centraliza e tira o fundo sozinho.
+        Se o fundo estiver bagunçado, ele desiste de recortar e mantém a foto inteira — nunca
+        come pedaço do produto. <strong>Imagem baixada do site do fornecedor, em fundo branco,
+        é o que recorta melhor.</strong>
       </div>
 
       <div className="products-filters">
@@ -340,7 +363,6 @@ export default function Photos() {
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         style={{ display: 'none' }}
         onChange={aoEscolher}
       />
@@ -354,7 +376,17 @@ export default function Photos() {
       <div className="foto-grade">
         {lista.map((p) => (
           <div className="foto-card" key={p.id}>
-            <div className="foto-quadro">
+            <div
+              className={`foto-quadro ${arrastando === p.id ? 'arrastando' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setArrastando(p.id); }}
+              onDragLeave={() => setArrastando(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setArrastando(null);
+                tratarArquivo(e.dataTransfer.files?.[0], p);
+              }}
+              title="Arraste uma imagem aqui"
+            >
               {p.foto_url
                 ? <img src={p.foto_url} alt={p.nome} loading="lazy" />
                 : <ImageOff size={32} color="#cfc4bd" />}
@@ -396,11 +428,13 @@ export default function Photos() {
               </div>
               <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.75rem' }}>
                 <strong>{previa.produto.marca} {previa.produto.nome}</strong><br />
-                {previa.transparente
-                  ? 'Fundo removido — vai ficar recortada na loja.'
-                  : tirarFundo
-                    ? 'O fundo não era uniforme o suficiente, então mantive a foto inteira.'
-                    : 'Foto inteira, sem recorte de fundo.'}
+                {previa.jaRecortada
+                  ? 'Essa imagem já veio sem fundo — só centralizei.'
+                  : previa.transparente
+                    ? 'Fundo removido — vai ficar recortada na loja.'
+                    : tirarFundo
+                      ? 'O fundo não era uniforme o suficiente, então mantive a foto inteira.'
+                      : 'Foto inteira, sem recorte de fundo.'}
               </p>
               <div className="form-actions" style={{ marginTop: '1rem' }}>
                 <button className="btn btn-secondary" onClick={() => setPrevia(null)}>Descartar</button>

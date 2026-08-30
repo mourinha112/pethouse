@@ -62,16 +62,22 @@ fabricantes bloqueiam acesso automático. E, sem código de barras no cadastro,
 casar 88 rações por nome ("gga", "FREDDY", "PITTY 15KG") ia colocar foto
 errada em produto certo — pior do que não ter foto.
 
-Então a tela faz o caminho que funciona:
+Então a tela faz o caminho que funciona. Três jeitos de pôr a foto:
 
-- **Tirar foto** — no celular abre a câmera direto. O navegador encolhe para
-  800×800, centraliza e **tira o fundo** sozinho.
-- **Colar link** — se você já tem a imagem do fornecedor.
-- **Remover** — volta ao desenho de saco nas cores da marca.
+- **Arrastar** um arquivo em cima do quadrado do produto (computador).
+- **Botão Foto** — abre o seletor de arquivos. No celular o próprio sistema
+  oferece Câmera / Galeria / Arquivos, então dá para tirar na hora **ou** usar
+  uma imagem que você baixou.
+- **Colar link** — se a imagem já está publicada em algum lugar.
 
-O recorte de fundo funciona por preenchimento a partir das bordas: fotografe
-o saco **contra parede clara e lisa**. Se o fundo não for uniforme, ele desiste
-do recorte e mantém a foto inteira — nunca come pedaço do produto.
+Em qualquer um deles o navegador encolhe para 800×800, centraliza e **tira o
+fundo** sozinho. O recorte funciona por preenchimento a partir das bordas:
+
+- Imagem **baixada do site do fornecedor, em fundo branco** — recorta muito bem.
+- PNG que **já vem sem fundo** — ele percebe e só centraliza.
+- Foto do saco na prateleira — funcione contra **parede clara e lisa**.
+- Fundo bagunçado — ele desiste do recorte e mantém a foto inteira, nunca come
+  pedaço do produto.
 
 Prioridade: filtre por **Sem foto + Só com estoque**. São 21 rações, não 88.
 

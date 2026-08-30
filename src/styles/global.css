@@ -1348,3 +1348,5 @@ html, body, #root {
 .foto-acoes .btn:first-child { flex-grow: 1; justify-content: center; }
 .foto-previa { aspect-ratio: 1; max-width: 260px; margin: 0 auto; border-radius: 14px; background: #FFF3E4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='8' height='8' fill='%23eee'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%23eee'/%3E%3C/svg%3E"); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .foto-previa img { width: 100%; height: 100%; object-fit: contain; }
+.foto-quadro { transition: outline-color 0.12s, background 0.12s; outline: 2px dashed transparent; outline-offset: -4px; }
+.foto-quadro.arrastando { background: #FFF3C9; outline-color: #B60100; }
