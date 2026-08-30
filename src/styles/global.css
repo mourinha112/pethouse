@@ -23,7 +23,7 @@ html, body, #root {
 /* ==============================================
    SIDEBAR
    ============================================== */
-.sidebar { width: 236px; background: #FFFCF9; color: #6E5C54; display: flex; flex-direction: column; flex-shrink: 0; border-radius: 20px; overflow: hidden; border: 1px solid #EFE3D8; box-shadow: 0 1px 3px rgba(90,60,45,0.06); }
+.sidebar { width: 230px; background: #FFFCF9; color: #6E5C54; display: flex; flex-direction: column; flex-shrink: 0; border-radius: 20px; overflow: hidden; border: 1px solid #EFE3D8; box-shadow: 0 1px 3px rgba(90,60,45,0.06); }
 .sidebar-brand { display: flex; align-items: center; gap: 0.7rem; padding: 1.15rem 1rem 1rem; border-bottom: 1px solid #F4EAE0; }
 .sidebar-brand-icon { width: 44px; height: 44px; background: #fff; border: 1.5px solid #F0DFD2; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 5px rgba(182,1,0,0.07); }
 .sidebar-brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -1352,3 +1352,145 @@ html, body, #root {
 .foto-campo-lado { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .foto-campo-botoes { display: flex; gap: 0.4rem; }
 .foto-campo-lado small { font-size: 0.73rem; color: #A8968C; }
+
+/* =====================================================================
+   MOBILE — bloco novo, no fim de proposito.
+   Tudo aqui vive dentro de @media, entao a versao desktop nao muda.
+   ===================================================================== */
+@media (max-width: 768px) {
+
+  /* ---- TELA DE VENDAS (PDV) -------------------------------------------
+     Ela e position:fixed com left:254px (a largura do menu no desktop).
+     No celular o menu vira barra no topo, entao esses 254px jogavam a
+     tela quase toda para fora do visor. Aqui ela ocupa o que sobra
+     abaixo da barra, que continua clicavel para sair da venda.        */
+  .pdv-fullscreen {
+    top: 72px; left: 8px; right: 8px; bottom: 0;
+    border-radius: 18px 18px 0 0;
+    min-height: 0;
+  }
+
+  .pdv-body { padding: 0.6rem 0.6rem 0; gap: 0.6rem; overflow: visible; }
+
+  /* o logo grande so ocupa espaco util no celular */
+  .pdv-brand-area { display: none; }
+
+  .pdv-left-area { min-height: 0; max-height: none; flex: 0 0 auto; }
+  .pdv-cart-panel {
+    width: 100%; flex: 1; min-height: 0;
+    border-radius: 18px; box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  }
+  .pdv-cart-items { min-height: 120px; }
+
+  /* total e botao de pagar sempre alcancaveis com o polegar */
+  .pdv-cart-footer {
+    position: sticky; bottom: 0; background: #fff; z-index: 5;
+    padding: 0.75rem 0.9rem calc(0.75rem + env(safe-area-inset-bottom));
+    flex-wrap: wrap;
+  }
+  .pdv-cart-footer .pdv-pay-btn { flex: 1 1 100%; }
+  .pdv-total-value { font-size: 1.55rem; }
+
+  .pdv-topbar { border-radius: 18px 18px 0 0; }
+  .pdv-dropdown { max-height: 60vh; }
+
+  /* ---- TABELAS VIRAM CARTOES ------------------------------------------
+     O data-rotulo vem do componente TabelaMobile.                     */
+  .table-container { background: transparent; box-shadow: none; overflow: visible; }
+  .data-table { min-width: 0; display: block; }
+  .data-table thead { display: none; }
+  .data-table tbody { display: block; }
+
+  .data-table tbody tr {
+    display: block;
+    background: #fff;
+    border: 1px solid #EFE3D8;
+    border-radius: 14px;
+    padding: 0.35rem 0.85rem;
+    margin-bottom: 0.6rem;
+    box-shadow: 0 1px 3px rgba(90,60,45,0.06);
+  }
+  .data-table tbody tr:hover { background: #fff; }
+
+  .data-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #F6EFE9;
+    font-size: 0.9rem;
+    text-align: right;
+  }
+  .data-table tbody td:last-child { border-bottom: 0; }
+
+  .data-table tbody td::before {
+    content: attr(data-rotulo);
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #A8968C;
+    text-align: left;
+  }
+  /* celula sem titulo (coluna de acoes) ocupa a linha toda */
+  .data-table tbody td:not([data-rotulo])::before,
+  .data-table tbody td[data-rotulo=""]::before { content: none; }
+
+  .table-actions { justify-content: flex-end; gap: 0.5rem; }
+  .table-actions button { min-width: 40px; min-height: 40px; }
+  .table-empty { background: #fff; border-radius: 14px; padding: 2rem 1rem; }
+
+  /* ---- FILTROS E FORMULARIOS ---- */
+  .products-filters, .filter-bar, .expenses-filters { flex-direction: column; align-items: stretch; }
+  .products-filters > *, .filter-bar > * { width: 100%; max-width: 100%; }
+  .filter-select, .filter-input { min-width: 0; width: 100%; min-height: 44px; font-size: 16px; }
+  .ped-filtros { flex-direction: row; flex-wrap: wrap; }
+  .ped-filtros > * { width: auto; }
+  .form-actions { flex-direction: column-reverse; }
+  .form-actions .btn { width: 100%; justify-content: center; }
+  .page-header .btn { width: 100%; justify-content: center; }
+
+  /* ---- PAGINAS NOVAS ---- */
+  .ped-metricas { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .ped-metrica { padding: 0.7rem; gap: 0.5rem; flex-direction: column; }
+  .ped-metrica strong { font-size: 1.2rem; }
+  .ped-metrica-rotulo { font-size: 0.66rem; }
+  .ped-acoes .btn { width: 100%; }
+  .foto-grade { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .foto-card { padding: 0.6rem; }
+  .foto-nome { font-size: 0.8rem; }
+  .foto-acoes { flex-wrap: wrap; }
+  .foto-campo { flex-direction: column; }
+  .loja-link { flex-direction: column; align-items: stretch; }
+  .loja-link .btn { justify-content: center; }
+
+  /* ---- RESPIRO NO PE DA PAGINA ---- */
+  .main-content { padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); }
+}
+
+/* Telas bem estreitas */
+@media (max-width: 420px) {
+  .ped-metricas { grid-template-columns: 1fr; }
+  .foto-grade { grid-template-columns: 1fr 1fr; }
+  .page-title { font-size: 1.15rem; }
+  .cards-grid { gap: 0.6rem; }
+}
+
+@media (max-width: 768px) {
+  /* linha de "nenhum registro" (colspan) e rodape de totais dos relatorios */
+  .data-table tbody td.table-empty {
+    display: block; text-align: center; border-bottom: 0;
+    color: #A8968C; padding: 1.5rem 0.5rem;
+  }
+  .data-table tbody td.table-empty::before { content: none; }
+
+  .data-table tfoot { display: block; }
+  .data-table tfoot tr {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem;
+    background: #FFF4E6; border: 1px solid #F5DDB8; border-radius: 14px;
+    padding: 0.75rem 0.85rem; margin-top: 0.25rem;
+  }
+  .data-table tfoot td { border: 0; padding: 0; font-weight: 800; }
+}

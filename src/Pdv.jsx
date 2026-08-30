@@ -5,6 +5,7 @@ import theme from './theme';
 import './styles/global.css';
 import { ToastProvider } from './components/Toast';
 import Sidebar from './components/Sidebar';
+import TabelaMobile from './components/TabelaMobile';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -56,6 +57,7 @@ export default function Pdv() {
       <CssBaseline />
       <ToastProvider>
         <div className="app-layout">
+          <TabelaMobile />
           <Sidebar user={user} onLogout={handleLogout} />
           <main className="main-content">
           <Routes>
