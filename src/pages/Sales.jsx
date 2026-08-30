@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { filtrarProdutos } from '../lib/busca';
 import axios from 'axios';
 import {
   Search, X, CreditCard, Banknote, Smartphone, Package,
@@ -33,6 +34,7 @@ function getDateRange(filter, periodStart, periodEnd) {
 export default function Sales() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
@@ -56,7 +58,7 @@ export default function Sales() {
   const receiptRef = useRef(null);
   const kgInputRef = useRef(null);
 
-  useEffect(() => { loadClients(); loadTodaySales(); }, []);
+  useEffect(() => { loadClients(); loadTodaySales(); loadAllProducts(); }, []);
   useEffect(() => {
     if (showHistory) loadHistorySales();
   }, [showHistory, salesFilter, periodStart, periodEnd]);
@@ -98,11 +100,27 @@ export default function Sales() {
     catch (err) { console.error('Erro ao carregar detalhe:', err); }
   }
 
-  // Busca de produtos
+  // Catalogo inteiro na memoria: a busca fica instantanea e nao depende
+  // de ida ao servidor a cada tecla.
+  async function loadAllProducts() {
+    try {
+      const res = await axios.get(`${API}/products`);
+      setAllProducts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { setAllProducts([]); }
+  }
+
+  // Busca de produtos: cada palavra digitada e procurada em marca + nome,
+  // sem acento, em qualquer ordem. Digitar o nome inteiro acha igual.
   async function handleSearch(e) {
     const term = e.target.value;
     setSearchTerm(term);
-    if (term.length < 2) { setSearchResults([]); return; }
+    if (term.trim().length < 2) { setSearchResults([]); return; }
+
+    if (allProducts.length > 0) {
+      setSearchResults(filtrarProdutos(allProducts, term, 25));
+      return;
+    }
+
     try {
       const res = await axios.get(`${API}/products/search/${encodeURIComponent(term)}`);
       setSearchResults(res.data);

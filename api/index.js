@@ -456,16 +456,38 @@ export default async function handler(req, res) {
 
     // Products - search
     if (url.includes('/products/search/') && method === 'GET') {
-      const term = url.split('/products/search/')[1];
+      const term = decodeURIComponent(url.split('/products/search/')[1] || '');
+
+      const semAcento = (t) => String(t || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+      // tira o "s" do plural: procurar "filhote" acha "Filhote" e "Filhotes"
+      const radical = (w) => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w);
+
+      const termos = semAcento(term).split(/\s+/).filter(Boolean).map(radical);
+      if (termos.length === 0) return res.json([]);
+
+      // A primeira palavra corta no banco; as demais afinam aqui. Assim
+      // "Golden Formula Filhotes" acha, mesmo com a marca num campo e o
+      // resto no outro.
+      const primeira = termos[0];
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('ativo', 1)
-        .or(`nome.ilike.%${term}%,marca.ilike.%${term}%`)
-        .limit(20);
-      
+        .or(`nome.ilike.%${primeira}%,marca.ilike.%${primeira}%`)
+        .limit(200);
+
       if (error) throw error;
-      return res.json(data || []);
+
+      const achados = (data || []).filter((prod) => {
+        const alvo = semAcento(`${prod.marca || ''} ${prod.nome || ''}`);
+        return termos.every((t) => alvo.includes(t));
+      });
+
+      return res.json(achados.slice(0, 25));
     }
 
     // Products - create

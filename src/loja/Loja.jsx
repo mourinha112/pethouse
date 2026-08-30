@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api';
+import { combina } from '../lib/busca';
 import './loja.css';
 
 /* =====================================================================
@@ -308,7 +309,7 @@ export default function Loja() {
       if (especie !== 'todos' && !p.especie) return false;
       if (perfil !== 'todos' && p.perfil !== perfil) return false;
       if (porte !== 'todos' && p.porte && p.porte !== porte) return false;
-      if (termo && !(`${p.marca} ${p.nome}`.toLowerCase().includes(termo))) return false;
+      if (termo && !combina(`${p.marca} ${p.nome}`, busca)) return false;
       return true;
     })
       // quem tem estoque aparece primeiro

@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import Loading from '../components/Loading';
-import { Plus, Edit2, Trash2, PackagePlus, X, Store } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackagePlus, X, Store, Upload } from 'lucide-react';
+import { combina, textoDoProduto } from '../lib/busca';
+import { prepararFoto, enviarFoto } from '../lib/foto';
 
 const TIPOS = [
   { value: 'cao', label: 'Cão' }, { value: 'gato', label: 'Gato' },
@@ -67,6 +69,8 @@ export default function Products() {
   const [filterTipo, setFilterTipo] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('');
   const [filterStock, setFilterStock] = useState('');
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const fotoInputRef = useRef(null);
 
   useEffect(() => { loadProducts(); }, []);
 
@@ -74,6 +78,28 @@ export default function Products() {
     try { const res = await api.get('/products'); setProducts(res.data); }
     catch (err) { toast.error('Erro ao carregar produtos'); }
     finally { setLoading(false); }
+  }
+
+  // Foto: mesma preparacao da tela "Fotos da loja" (encolhe, tira o fundo
+  // quando o fundo e uniforme, centraliza) e manda para o Storage.
+  async function handleFotoUpload(e) {
+    const arquivo = e.target.files?.[0];
+    if (e.target) e.target.value = '';
+    if (!arquivo) return;
+    if (!arquivo.type.startsWith('image/')) { toast.error('Isso nao e uma imagem'); return; }
+
+    setEnviandoFoto(true);
+    try {
+      const { blob, transparente } = await prepararFoto(arquivo, true);
+      const base = editId ? `produto-${editId}` : `novo-${Date.now()}`;
+      const url = await enviarFoto(base, blob, transparente);
+      setForm(f => ({ ...f, foto_url: url }));
+      toast.success('Foto enviada! Salve o produto para valer.');
+    } catch (err) {
+      toast.error(err.message || 'Nao consegui enviar a foto');
+    } finally {
+      setEnviandoFoto(false);
+    }
   }
 
   function handleChange(e) {
@@ -174,7 +200,7 @@ export default function Products() {
   }
 
   const filtered = products.filter(p => {
-    if (search && !p.nome.toLowerCase().includes(search.toLowerCase()) && !(p.marca || '').toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !combina(textoDoProduto(p), search)) return false;
     if (filterTipo && p.tipo !== filterTipo) return false;
     if (filterCategoria && (p.categoria || 'racao') !== filterCategoria) return false;
     if (filterStock) {
@@ -323,10 +349,34 @@ export default function Products() {
                       </div>
                     )}
 
-                    <div className="form-row">
-                      <div className="form-group"><label>Foto do produto (link)</label>
-                        <input name="foto_url" value={form.foto_url} onChange={handleChange} placeholder="https://... (opcional)" />
+                    <div className="form-group">
+                      <label>Foto do produto</label>
+                      <div className="foto-campo">
+                        <div className="foto-campo-quadro">
+                          {form.foto_url
+                            ? <img src={form.foto_url} alt="" onError={(e) => { e.currentTarget.style.opacity = 0.2; }} />
+                            : <Store size={22} color="#cfc4bd" />}
+                        </div>
+                        <div className="foto-campo-lado">
+                          <div className="foto-campo-botoes">
+                            <button type="button" className="btn btn-secondary btn-sm" disabled={enviandoFoto}
+                              onClick={() => fotoInputRef.current?.click()}>
+                              <Upload size={15} /> {enviandoFoto ? 'Enviando...' : 'Enviar foto'}
+                            </button>
+                            {form.foto_url && (
+                              <button type="button" className="btn btn-delete btn-sm"
+                                onClick={() => setForm(f => ({ ...f, foto_url: '' }))}>
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
+                          <input name="foto_url" value={form.foto_url} onChange={handleChange}
+                            placeholder="ou cole um link https://..." />
+                          <small>O fundo e removido sozinho quando a imagem tem fundo liso.</small>
+                        </div>
                       </div>
+                      <input ref={fotoInputRef} type="file" accept="image/*"
+                        style={{ display: 'none' }} onChange={handleFotoUpload} />
                     </div>
 
                     {isRacao(form.categoria) && (
