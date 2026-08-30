@@ -16,6 +16,11 @@ export default function Settings({ currentUser }) {
   const [dbInfo, setDbInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('geral');
+  const [loja, setLoja] = useState({
+    loja_aberta: 'true', whatsapp_loja: '', endereco_loja: '',
+    frete_valor: '9.90', frete_gratis_acima: '99', pedido_minimo: '0',
+  });
+  const [salvandoLoja, setSalvandoLoja] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
   const [userForm, setUserForm] = useState({ nome: '', login: '', senha: '', role: 'operador' });
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -34,6 +39,10 @@ export default function Settings({ currentUser }) {
       setUsers(usersRes.data);
       setBackups(backupsRes.data);
       setDbInfo(infoRes.data);
+      try {
+        const lojaRes = await api.get('/settings');
+        setLoja(l => ({ ...l, ...lojaRes.data }));
+      } catch (_) {}
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }
@@ -47,6 +56,26 @@ export default function Settings({ currentUser }) {
       });
       toast.success('Configuracoes salvas!');
     } catch (err) { toast.error(err.response?.data?.error || err.message); }
+  }
+
+  async function salvarLoja(e) {
+    e.preventDefault();
+    setSalvandoLoja(true);
+    try {
+      await api.put('/settings', {
+        loja_aberta: loja.loja_aberta,
+        whatsapp_loja: String(loja.whatsapp_loja || '').replace(/\D/g, ''),
+        endereco_loja: loja.endereco_loja,
+        frete_valor: loja.frete_valor,
+        frete_gratis_acima: loja.frete_gratis_acima,
+        pedido_minimo: loja.pedido_minimo,
+      });
+      toast.success('Loja online atualizada!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message);
+    } finally {
+      setSalvandoLoja(false);
+    }
   }
 
   async function handleAddUser(e) {
@@ -94,6 +123,7 @@ export default function Settings({ currentUser }) {
 
       <div className="tabs">
         <button className={`tab ${activeTab === 'geral' ? 'active' : ''}`} onClick={() => setActiveTab('geral')}>Geral</button>
+        <button className={`tab ${activeTab === 'loja' ? 'active' : ''}`} onClick={() => setActiveTab('loja')}>Loja online</button>
         <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Usuarios</button>
         <button className={`tab ${activeTab === 'backup' ? 'active' : ''}`} onClick={() => setActiveTab('backup')}>Backup</button>
       </div>
@@ -117,6 +147,71 @@ export default function Settings({ currentUser }) {
             </div>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary"><Save size={16} /> Salvar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* LOJA ONLINE */}
+      {activeTab === 'loja' && (
+        <div className="dashboard-section">
+          <h2><Store size={18} /> Loja online</h2>
+
+          <div className="loja-link">
+            <div>
+              <strong>Link para os clientes</strong>
+              <div>{typeof window !== 'undefined' ? `${window.location.origin}/loja` : '/loja'}</div>
+            </div>
+            <a className="btn btn-secondary btn-sm" href="/loja" target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={15} /> Abrir
+            </a>
+          </div>
+
+          <form onSubmit={salvarLoja}>
+            <label className="loja-switch" style={{ margin: '1rem 0' }}>
+              <input
+                type="checkbox"
+                checked={loja.loja_aberta !== 'false'}
+                onChange={e => setLoja({ ...loja, loja_aberta: e.target.checked ? 'true' : 'false' })}
+              />
+              <span>Loja aceitando pedidos agora</span>
+            </label>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>WhatsApp da loja (só números, com DDD)</label>
+                <input value={loja.whatsapp_loja || ''} placeholder="21999999999"
+                  onChange={e => setLoja({ ...loja, whatsapp_loja: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Endereço mostrado na loja</label>
+                <input value={loja.endereco_loja || ''} placeholder="Rua Bernardo Vasconcelos, 304"
+                  onChange={e => setLoja({ ...loja, endereco_loja: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Taxa de entrega (R$)</label>
+                <input type="number" step="0.01" value={loja.frete_valor || ''}
+                  onChange={e => setLoja({ ...loja, frete_valor: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Entrega grátis acima de (R$)</label>
+                <input type="number" step="1" value={loja.frete_gratis_acima || ''}
+                  onChange={e => setLoja({ ...loja, frete_gratis_acima: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Pedido mínimo (R$)</label>
+                <input type="number" step="1" value={loja.pedido_minimo || ''}
+                  onChange={e => setLoja({ ...loja, pedido_minimo: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button type="submit" className="btn btn-primary" disabled={salvandoLoja}>
+                <Save size={16} /> {salvandoLoja ? 'Salvando...' : 'Salvar'}
+              </button>
             </div>
           </form>
         </div>

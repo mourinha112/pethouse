@@ -3,7 +3,7 @@ import api from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import Loading from '../components/Loading';
-import { Plus, Edit2, Trash2, PackagePlus, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, PackagePlus, X, Store } from 'lucide-react';
 
 const TIPOS = [
   { value: 'cao', label: 'Cão' }, { value: 'gato', label: 'Gato' },
@@ -21,12 +21,34 @@ const CATEGORIAS = [
   { value: 'outros', label: 'Outros' },
 ];
 
+const ESPECIES = [
+  { value: '', label: 'Nao aparece por especie' },
+  { value: 'cao', label: 'Cao' },
+  { value: 'gato', label: 'Gato' },
+];
+
+const PORTES = [
+  { value: '', label: 'Serve todos os portes' },
+  { value: 'pequena', label: 'Racas pequenas' },
+  { value: 'media', label: 'Porte medio' },
+  { value: 'grande', label: 'Porte grande' },
+];
+
+const PERFIS = [
+  { value: '', label: 'Sem fase definida' },
+  { value: 'filhote', label: 'Filhote' },
+  { value: 'adulto', label: 'Adulto' },
+  { value: 'castrado', label: 'Castrado' },
+  { value: 'senior', label: 'Senior' },
+];
+
 const emptyForm = {
   nome: '', marca: '', tipo: 'cao', categoria: 'racao',
   peso_saco_kg: '', custo_saco: '', margem_percentual: '', margem_saco: '', preco_saco_fechado: '',
   estoque_kg: '', estoque_minimo_dias: '7',
   custo_unitario: '', preco_unitario: '', estoque_unidade: '', estoque_minimo_unidade: '0',
   custo_pacote: '', unidades_pacote: '', margem_unitaria: '',
+  especie: '', porte: '', perfil: '', foto_url: '', visivel_loja: true, vende_fracionado: true,
 };
 
 function isRacao(cat) { return !cat || cat === 'racao'; }
@@ -54,7 +76,10 @@ export default function Products() {
     finally { setLoading(false); }
   }
 
-  function handleChange(e) { setForm({ ...form, [e.target.name]: e.target.value }); }
+  function handleChange(e) {
+    const { name, type, value, checked } = e.target;
+    setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+  }
 
   const custo_por_kg = form.peso_saco_kg > 0 ? (form.custo_saco / form.peso_saco_kg) : 0;
   const preco_por_kg = custo_por_kg * (1 + (form.margem_percentual || 0) / 100);
@@ -93,6 +118,13 @@ export default function Products() {
         preco_unitario: !isR ? (precoUnitCalc > 0 ? precoUnitCalc : parseFloat(form.preco_unitario) || 0) : 0,
         estoque_unidade: !isR ? parseInt(form.estoque_unidade, 10) || 0 : 0,
         estoque_minimo_unidade: !isR ? parseInt(form.estoque_minimo_unidade, 10) || 0 : 0,
+        // Loja online
+        especie: form.especie || null,
+        porte: form.porte || null,
+        perfil: form.perfil || null,
+        foto_url: form.foto_url ? form.foto_url.trim() : null,
+        visivel_loja: !!form.visivel_loja,
+        vende_fracionado: isR ? !!form.vende_fracionado : false,
       };
       if (editId) { await api.put(`/products/${editId}`, payload); toast.success('Produto atualizado!'); }
       else { await api.post('/products', payload); toast.success('Produto cadastrado!'); }
@@ -106,6 +138,10 @@ export default function Products() {
       peso_saco_kg: p.peso_saco_kg ?? '', custo_saco: p.custo_saco ?? '', margem_percentual: p.margem_percentual ?? '', margem_saco: p.margem_saco ?? '', preco_saco_fechado: p.preco_saco_fechado ?? '',
       estoque_kg: p.estoque_kg ?? '', estoque_minimo_dias: p.estoque_minimo_dias ?? 7,
       custo_unitario: p.custo_unitario ?? '', preco_unitario: p.preco_unitario ?? '', estoque_unidade: p.estoque_unidade ?? '', estoque_minimo_unidade: p.estoque_minimo_unidade ?? 0,
+      custo_pacote: '', unidades_pacote: '', margem_unitaria: '',
+      especie: p.especie ?? '', porte: p.porte ?? '', perfil: p.perfil ?? '',
+      foto_url: p.foto_url ?? '', visivel_loja: p.visivel_loja !== false,
+      vende_fracionado: p.vende_fracionado !== false,
     });
     setEditId(p.id); setShowForm(true);
   }
@@ -250,6 +286,58 @@ export default function Products() {
                   </div>
                 </>
               )}
+
+              <div className="loja-bloco">
+                <div className="loja-bloco-titulo">
+                  <Store size={16} /> Loja online
+                  <span>como esse produto aparece para o cliente em /loja</span>
+                </div>
+
+                <label className="loja-switch">
+                  <input type="checkbox" name="visivel_loja" checked={!!form.visivel_loja} onChange={handleChange} />
+                  <span>Aparece no catalogo da loja online</span>
+                </label>
+
+                {form.visivel_loja && (
+                  <>
+                    <div className="form-row">
+                      <div className="form-group"><label>Especie</label>
+                        <select name="especie" value={form.especie} onChange={handleChange}>
+                          {ESPECIES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="form-group"><label>Fase / condicao</label>
+                        <select name="perfil" value={form.perfil} onChange={handleChange}>
+                          {PERFIS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    {form.especie === 'cao' && (
+                      <div className="form-row">
+                        <div className="form-group"><label>Porte do cao</label>
+                          <select name="porte" value={form.porte} onChange={handleChange}>
+                            {PORTES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="form-row">
+                      <div className="form-group"><label>Foto do produto (link)</label>
+                        <input name="foto_url" value={form.foto_url} onChange={handleChange} placeholder="https://... (opcional)" />
+                      </div>
+                    </div>
+
+                    {isRacao(form.categoria) && (
+                      <label className="loja-switch">
+                        <input type="checkbox" name="vende_fracionado" checked={!!form.vende_fracionado} onChange={handleChange} />
+                        <span>Pode ser vendido fracionado por kg na loja</span>
+                      </label>
+                    )}
+                  </>
+                )}
+              </div>
 
               <div className="form-actions"><button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button><button type="submit" className="btn btn-primary">{editId ? 'Salvar' : 'Cadastrar'}</button></div>
             </form>

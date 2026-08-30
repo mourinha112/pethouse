@@ -1340,6 +1340,420 @@ export default async function handler(req, res) {
       }
     }
 
+    // ==================================================================
+    // SETTINGS (chave/valor) - usado pela loja online e pelo PDV
+    // ==================================================================
+    if (url === '/api/settings' && method === 'GET') {
+      const { data, error } = await supabase.from('settings').select('*');
+      if (error) throw error;
+      const obj = {};
+      for (const row of data || []) obj[row.key] = row.value;
+      return res.json(obj);
+    }
+
+    if (url === '/api/settings' && method === 'PUT') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      for (const [key, value] of Object.entries(body || {})) {
+        await supabase.from('settings').upsert({ key, value: String(value ?? '') }, { onConflict: 'key' });
+      }
+      return res.json({ success: true });
+    }
+
+    // ==================================================================
+    // LOJA ONLINE (rotas publicas - sem login)
+    // ==================================================================
+
+    // Config publica da loja
+    if (url === '/api/shop/config' && method === 'GET') {
+      const { data } = await supabase.from('settings').select('*');
+      const s = {};
+      for (const row of data || []) s[row.key] = row.value;
+      return res.json({
+        loja_aberta: s.loja_aberta !== 'false',
+        whatsapp_loja: s.whatsapp_loja || '',
+        endereco_loja: s.endereco_loja || 'Rua Bernardo Vasconcelos, 304 - Vila Maria Helena',
+        frete_valor: parseFloat(s.frete_valor || '9.90') || 0,
+        frete_gratis_acima: parseFloat(s.frete_gratis_acima || '99') || 0,
+        pedido_minimo: parseFloat(s.pedido_minimo || '0') || 0,
+      });
+    }
+
+    // Catalogo publico
+    if (url === '/api/shop/products' && method === 'GET') {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('ativo', 1)
+        .order('nome');
+      if (error) throw error;
+
+      const list = (data || [])
+        .filter(p => p.visivel_loja !== false)
+        .map(p => {
+          const isRacao = !p.categoria || p.categoria === 'racao';
+          const temSaco = isRacao && p.preco_saco_fechado > 0 && p.peso_saco_kg > 0;
+          const temKg = isRacao && p.vende_fracionado !== false && p.preco_por_kg > 0;
+          const temUnidade = !isRacao && p.preco_unitario > 0;
+          return {
+            id: p.id,
+            nome: p.nome,
+            marca: p.marca || '',
+            categoria: p.categoria || 'racao',
+            especie: p.especie || (p.tipo === 'cao' || p.tipo === 'gato' ? p.tipo : null),
+            porte: p.porte || null,
+            perfil: p.perfil || (p.tipo === 'filhote' || p.tipo === 'castrado' ? p.tipo : null),
+            foto_url: p.foto_url || null,
+            peso_saco_kg: p.peso_saco_kg || 0,
+            preco_saco_fechado: p.preco_saco_fechado || 0,
+            preco_por_kg: p.preco_por_kg || 0,
+            preco_unitario: p.preco_unitario || 0,
+            estoque_kg: p.estoque_kg || 0,
+            estoque_unidade: p.estoque_unidade || 0,
+            tem_saco: temSaco,
+            tem_kg: temKg,
+            tem_unidade: temUnidade,
+          };
+        })
+        .filter(p => p.tem_saco || p.tem_kg || p.tem_unidade);
+
+      return res.json(list);
+    }
+
+    // Mais pedidos da loja: ranking real pelas vendas dos ultimos 90 dias
+    if (url === '/api/shop/destaques' && method === 'GET') {
+      const desde = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: vendas } = await supabase
+        .from('sales')
+        .select('id')
+        .gte('created_at', desde)
+        .limit(2000);
+
+      const ids = (vendas || []).map(v => v.id);
+      if (ids.length === 0) return res.json([]);
+
+      const { data: itens } = await supabase
+        .from('sale_items')
+        .select('product_id, quantidade_kg')
+        .in('sale_id', ids)
+        .limit(5000);
+
+      const contagem = {};
+      for (const it of itens || []) {
+        if (!it.product_id) continue;
+        contagem[it.product_id] = (contagem[it.product_id] || 0) + 1;
+      }
+
+      const ranking = Object.keys(contagem)
+        .map(id => ({ id: Number(id), vezes: contagem[id] }))
+        .sort((a, b) => b.vezes - a.vezes)
+        .slice(0, 6)
+        .map(r => r.id);
+
+      return res.json(ranking);
+    }
+
+    // Criar pedido a partir da loja
+    if (url === '/api/shop/orders' && method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const items = Array.isArray(body.items) ? body.items : [];
+
+      if (!body.cliente_nome || !String(body.cliente_nome).trim()) {
+        return res.status(400).json({ error: 'Informe seu nome' });
+      }
+      const whatsapp = String(body.cliente_whatsapp || '').replace(/\D/g, '');
+      if (whatsapp.length < 10) {
+        return res.status(400).json({ error: 'Informe um WhatsApp valido com DDD' });
+      }
+      if (items.length === 0) {
+        return res.status(400).json({ error: 'Pedido sem itens' });
+      }
+      const tipoEntrega = body.tipo_entrega === 'retirada' ? 'retirada' : 'entrega';
+      if (tipoEntrega === 'entrega' && !String(body.endereco || '').trim()) {
+        return res.status(400).json({ error: 'Informe o endereco de entrega' });
+      }
+
+      // Precos e estoque sao recalculados aqui no servidor - o que vem do
+      // navegador serve so para saber o que a pessoa escolheu.
+      const linhas = [];
+      let subtotal = 0;
+
+      for (const item of items) {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', item.product_id)
+          .single();
+
+        if (!prod || prod.ativo !== 1 || prod.visivel_loja === false) {
+          return res.status(409).json({ error: 'Um dos produtos saiu do catalogo. Revise o carrinho.' });
+        }
+
+        const qtd = parseFloat(item.quantidade_kg) || 0;
+        if (qtd <= 0) continue;
+
+        const isRacao = !prod.categoria || prod.categoria === 'racao';
+        let tipoVenda = item.tipo_venda;
+        if (!isRacao) tipoVenda = 'unidade';
+        else if (tipoVenda !== 'saco') tipoVenda = 'kg';
+
+        let precoUnit = 0;
+        let kgEquivalente = 0;
+
+        if (tipoVenda === 'saco') {
+          precoUnit = prod.preco_saco_fechado || 0;
+          kgEquivalente = qtd * (prod.peso_saco_kg || 0);
+        } else if (tipoVenda === 'kg') {
+          precoUnit = prod.preco_por_kg || 0;
+          kgEquivalente = qtd;
+        } else {
+          precoUnit = prod.preco_unitario || 0;
+        }
+
+        if (precoUnit <= 0) {
+          return res.status(409).json({ error: prod.nome + ' esta sem preco cadastrado.' });
+        }
+
+        if (tipoVenda === 'unidade') {
+          if ((prod.estoque_unidade || 0) < qtd) {
+            return res.status(409).json({ error: prod.nome + ': restam ' + (prod.estoque_unidade || 0) + ' unidade(s) em estoque.' });
+          }
+        } else if ((prod.estoque_kg || 0) < kgEquivalente) {
+          return res.status(409).json({ error: prod.nome + ': restam ' + (prod.estoque_kg || 0).toFixed(1) + ' kg em estoque.' });
+        }
+
+        const linhaSubtotal = Math.round(qtd * precoUnit * 100) / 100;
+        subtotal += linhaSubtotal;
+
+        let descricao = (prod.marca ? prod.marca + ' ' : '') + prod.nome;
+        if (tipoVenda === 'saco') descricao += ' - Saco ' + prod.peso_saco_kg + ' kg';
+        else if (tipoVenda === 'kg') descricao += ' - Fracionado ' + qtd + ' kg';
+        else descricao += ' - ' + qtd + ' un';
+
+        linhas.push({
+          product_id: prod.id,
+          descricao,
+          tipo_venda: tipoVenda,
+          quantidade_kg: qtd,
+          preco_unitario: precoUnit,
+          subtotal: linhaSubtotal,
+        });
+      }
+
+      if (linhas.length === 0) {
+        return res.status(400).json({ error: 'Pedido sem itens validos' });
+      }
+
+      subtotal = Math.round(subtotal * 100) / 100;
+
+      const { data: cfgRows } = await supabase.from('settings').select('*');
+      const cfg = {};
+      for (const row of cfgRows || []) cfg[row.key] = row.value;
+
+      const freteValor = parseFloat(cfg.frete_valor || '9.90') || 0;
+      const freteGratisAcima = parseFloat(cfg.frete_gratis_acima || '99') || 0;
+      const pedidoMinimo = parseFloat(cfg.pedido_minimo || '0') || 0;
+
+      if (pedidoMinimo > 0 && subtotal < pedidoMinimo) {
+        return res.status(400).json({ error: 'Pedido minimo de R$ ' + pedidoMinimo.toFixed(2) });
+      }
+
+      const frete = tipoEntrega === 'entrega' && subtotal < freteGratisAcima ? freteValor : 0;
+      const total = Math.round((subtotal + frete) * 100) / 100;
+
+      // Cliente: reaproveita pelo WhatsApp, cadastra se for novo
+      let clientId = null;
+      const { data: achado } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('whatsapp', whatsapp)
+        .limit(1);
+
+      if (achado && achado.length > 0) {
+        clientId = achado[0].id;
+      } else {
+        const { data: novo } = await supabase
+          .from('clients')
+          .insert([{
+            nome: String(body.cliente_nome).trim(),
+            whatsapp,
+            tipo_pet: body.tipo_pet || '',
+            racao_utilizada: linhas[0] ? linhas[0].descricao : '',
+          }])
+          .select();
+        if (novo && novo.length > 0) clientId = novo[0].id;
+      }
+
+      const { data: pedido, error: erroPedido } = await supabase
+        .from('orders')
+        .insert([{
+          client_id: clientId,
+          cliente_nome: String(body.cliente_nome).trim(),
+          cliente_whatsapp: whatsapp,
+          tipo_entrega: tipoEntrega,
+          endereco: tipoEntrega === 'entrega' ? String(body.endereco || '').trim() : null,
+          referencia: body.referencia || null,
+          janela: body.janela || null,
+          observacao: body.observacao || null,
+          subtotal,
+          frete,
+          total,
+          status: 'novo',
+          assinatura: !!body.assinatura,
+          frequencia: body.assinatura ? (body.frequencia || 'quinzenal') : null,
+        }])
+        .select();
+
+      if (erroPedido) throw erroPedido;
+      const pedidoId = pedido[0].id;
+
+      for (const linha of linhas) {
+        await supabase.from('order_items').insert([Object.assign({ order_id: pedidoId }, linha)]);
+      }
+
+      return res.status(201).json(Object.assign({}, pedido[0], { items: linhas }));
+    }
+
+    // ==================================================================
+    // PEDIDOS (lado do PDV)
+    // ==================================================================
+    if (url === '/api/orders' && method === 'GET') {
+      let query = {};
+      try {
+        if (rawUrl.includes('?')) query = Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1]));
+      } catch (_) {}
+
+      let q = supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (query.status && query.status !== 'todos') q = q.eq('status', query.status);
+      if (query.data_inicio) q = q.gte('created_at', query.data_inicio);
+      if (query.data_fim) q = q.lte('created_at', query.data_fim + 'T23:59:59.999Z');
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return res.json(data || []);
+    }
+
+    if (url.match(/^\/api\/orders\/\d+$/) && method === 'GET') {
+      const id = url.replace(/^\/api\/orders\//, '');
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('id', id)
+        .single();
+      if (error || !data) return res.status(404).json({ error: 'Pedido nao encontrado' });
+      return res.json(data);
+    }
+
+    if (url.match(/^\/api\/orders\/\d+\/status$/) && method === 'PUT') {
+      const id = url.match(/^\/api\/orders\/(\d+)\/status$/)[1];
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const permitidos = ['novo', 'confirmado', 'separando', 'pronto', 'entregue', 'cancelado'];
+      if (!permitidos.includes(body.status)) {
+        return res.status(400).json({ error: 'Status invalido' });
+      }
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ status: body.status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      return res.json(data[0]);
+    }
+
+    // Confirmar pedido: vira venda no PDV e baixa o estoque
+    if (url.match(/^\/api\/orders\/\d+\/confirm$/) && method === 'POST') {
+      const id = url.match(/^\/api\/orders\/(\d+)\/confirm$/)[1];
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+      const formaPagamento = ['dinheiro', 'pix', 'cartao'].includes(body.forma_pagamento)
+        ? body.forma_pagamento : 'pix';
+
+      const { data: pedido, error: e1 } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('id', id)
+        .single();
+
+      if (e1 || !pedido) return res.status(404).json({ error: 'Pedido nao encontrado' });
+      if (pedido.sale_id) return res.status(409).json({ error: 'Pedido ja foi lancado como venda' });
+      if (pedido.status === 'cancelado') return res.status(409).json({ error: 'Pedido cancelado' });
+
+      const itens = pedido.order_items || [];
+      if (itens.length === 0) return res.status(400).json({ error: 'Pedido sem itens' });
+
+      // A venda registra os produtos. O frete fica so no pedido, para nao
+      // inflar o faturamento com taxa de entrega.
+      const { data: novaVenda, error: e2 } = await supabase
+        .from('sales')
+        .insert([{
+          client_id: pedido.client_id,
+          total: pedido.subtotal,
+          desconto: 0,
+          forma_pagamento: formaPagamento,
+        }])
+        .select();
+
+      if (e2) throw e2;
+      const saleId = novaVenda[0].id;
+
+      for (const item of itens) {
+        await supabase.from('sale_items').insert([{
+          sale_id: saleId,
+          product_id: item.product_id,
+          tipo_venda: item.tipo_venda === 'unidade' ? 'kg' : item.tipo_venda,
+          quantidade_kg: item.quantidade_kg,
+          preco_unitario: item.preco_unitario,
+          subtotal: item.subtotal,
+        }]);
+
+        const { data: prod } = await supabase
+          .from('products')
+          .select('categoria, peso_saco_kg, estoque_kg, estoque_unidade')
+          .eq('id', item.product_id)
+          .single();
+
+        if (!prod) continue;
+
+        if (item.tipo_venda === 'unidade') {
+          const un = Math.round(item.quantidade_kg || 0);
+          const novoEstoque = Math.max(0, (prod.estoque_unidade || 0) - un);
+          await supabase.from('products').update({ estoque_unidade: novoEstoque }).eq('id', item.product_id);
+          await supabase.from('stock_movements').insert([{
+            product_id: item.product_id, tipo: 'saida', quantidade_kg: -un,
+            motivo: 'Pedido online #' + id, sale_id: saleId,
+          }]);
+        } else {
+          const qtyKg = item.tipo_venda === 'saco'
+            ? (item.quantidade_kg || 0) * (prod.peso_saco_kg || 1)
+            : (item.quantidade_kg || 0);
+          const novoEstoque = Math.max(0, (prod.estoque_kg || 0) - qtyKg);
+          await supabase.from('products').update({ estoque_kg: novoEstoque }).eq('id', item.product_id);
+          await supabase.from('stock_movements').insert([{
+            product_id: item.product_id, tipo: 'saida', quantidade_kg: -qtyKg,
+            motivo: 'Pedido online #' + id, sale_id: saleId,
+          }]);
+        }
+      }
+
+      if (pedido.client_id) {
+        await supabase
+          .from('clients')
+          .update({ ultima_compra: new Date().toISOString() })
+          .eq('id', pedido.client_id);
+      }
+
+      const { data: atualizado } = await supabase
+        .from('orders')
+        .update({ status: 'confirmado', sale_id: saleId, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+
+      return res.json(Object.assign({}, (atualizado && atualizado[0]) || pedido, { sale_id: saleId }));
+    }
+
     return res.status(404).json({ error: 'Route not found' });
 
   } catch (error) {

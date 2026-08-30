@@ -1,0 +1,352 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&display=swap');
+
+/* =====================================================================
+   LOJA ONLINE - The Pet House
+   Tudo aqui usa o prefixo .lj- para nao esbarrar no CSS do PDV.
+   ===================================================================== */
+
+.lj-app {
+  --lj-vermelho: #C81414;
+  --lj-vermelho-esc: #8A0C0C;
+  --lj-vinho: #7D0B0B;
+  --lj-amarelo: #FFCF33;
+  --lj-amarelo-claro: #FFF3C9;
+  --lj-creme: #FFF6DC;
+  --lj-fundo: #FFF9EE;
+  --lj-texto: #3A1A17;
+  --lj-suave: #8A6A62;
+  --lj-borda: #F0DED2;
+  --lj-verde: #1D7A38;
+
+  position: relative;
+  min-height: 100vh;
+  margin: 0 auto;
+  max-width: 560px;
+  background: var(--lj-fundo);
+  color: var(--lj-texto);
+  font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  padding-bottom: 92px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.18);
+  -webkit-font-smoothing: antialiased;
+}
+
+.lj-app *,
+.lj-app *::before,
+.lj-app *::after { box-sizing: border-box; }
+
+.lj-app button {
+  font-family: inherit;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lj-app input,
+.lj-app textarea,
+.lj-app select { font-family: inherit; }
+
+.lj-ttl { font-family: 'Baloo 2', 'Segoe UI', sans-serif; font-weight: 800; }
+
+/* === CABECALHOS === */
+.lj-topo {
+  background: linear-gradient(150deg, #E12420 0%, #B71212 100%);
+  padding: 18px 16px 20px;
+  border-radius: 0 0 26px 26px;
+}
+.lj-topo-linha { display: flex; align-items: center; gap: 12px; }
+.lj-topo-logo { width: 52px; height: auto; flex-shrink: 0; }
+.lj-topo-oi { font-size: 19px; color: var(--lj-creme); line-height: 1.1; }
+.lj-topo-sub { font-size: 13px; font-weight: 700; color: rgba(255, 246, 220, 0.8); }
+
+.lj-topo-local {
+  display: flex; align-items: center; gap: 9px; margin-top: 14px;
+  background: rgba(255, 246, 220, 0.16);
+  border: 1.5px solid rgba(255, 207, 51, 0.5);
+  border-radius: 999px; padding: 10px 14px;
+  font-size: 13.5px; font-weight: 800; color: var(--lj-creme);
+}
+
+.lj-barra {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--lj-vermelho); padding: 14px 16px;
+  border-radius: 0 0 20px 20px;
+}
+.lj-barra-titulo { flex-grow: 1; font-size: 19px; color: var(--lj-creme); }
+.lj-icone-btn {
+  position: relative; background: rgba(255, 246, 220, 0.16);
+  border-radius: 13px; width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.lj-conteudo { padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* === BLOCO "PRA QUEM E" === */
+.lj-secao-titulo { font-size: 21px; color: var(--lj-vinho); line-height: 1.15; }
+.lj-secao-sub { font-size: 13.5px; font-weight: 700; color: var(--lj-suave); margin-top: 2px; }
+
+.lj-especies { display: flex; gap: 12px; margin-top: 12px; }
+.lj-especie {
+  flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 7px;
+  background: #fff; border: 2.5px solid var(--lj-borda); border-radius: 22px;
+  padding: 16px 8px; box-shadow: 0 4px 0 rgba(125, 11, 11, 0.07);
+  transition: transform 0.12s ease;
+}
+.lj-especie:active { transform: translateY(2px); }
+.lj-especie span { font-size: 19px; color: var(--lj-vinho); }
+
+/* === CHIPS === */
+.lj-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.lj-chip {
+  border-radius: 999px; padding: 11px 16px; min-height: 44px;
+  font-size: 13.5px; font-weight: 800;
+  background: #fff; color: var(--lj-vinho); border: 2px solid var(--lj-borda);
+}
+.lj-chip.is-on {
+  background: var(--lj-vermelho); color: var(--lj-creme);
+  border-color: var(--lj-vermelho); box-shadow: 0 3px 0 var(--lj-vermelho-esc);
+}
+.lj-chip-grow { flex-grow: 1; }
+.lj-rotulo {
+  font-size: 11.5px; font-weight: 900; color: var(--lj-suave);
+  letter-spacing: 0.6px; margin-bottom: 7px;
+}
+
+/* === CARDS DESTAQUE === */
+.lj-repetir {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: var(--lj-amarelo-claro); border: 2px solid var(--lj-amarelo);
+  border-radius: 22px; padding: 14px; width: 100%;
+}
+.lj-repetir-icone {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 15px; background: var(--lj-amarelo); flex-shrink: 0;
+}
+
+.lj-clube {
+  position: relative; overflow: hidden; display: block; width: 100%; text-align: left;
+  background: linear-gradient(140deg, #E12420 0%, #A50E10 100%);
+  border-radius: 24px; padding: 16px 140px 16px 16px; min-height: 132px;
+}
+.lj-clube-tag {
+  display: inline-block; background: var(--lj-amarelo); color: var(--lj-vermelho-esc);
+  border-radius: 999px; padding: 5px 12px;
+  font-size: 11.5px; font-weight: 900; letter-spacing: 0.8px;
+}
+.lj-clube-img { position: absolute; right: -6px; bottom: -12px; width: 146px; height: auto; }
+
+/* === PRODUTOS === */
+.lj-lista { display: flex; flex-direction: column; gap: 11px; }
+.lj-produto {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: #fff; border: 2px solid var(--lj-borda); border-radius: 20px; padding: 11px 12px;
+}
+.lj-produto:disabled { opacity: 0.55; }
+.lj-foto {
+  display: flex; align-items: center; justify-content: center;
+  width: 64px; height: 72px; border-radius: 15px; background: #FFF3E4; flex-shrink: 0;
+  overflow: hidden;
+}
+.lj-foto img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lj-marca { font-size: 12px; font-weight: 900; color: var(--lj-vermelho); letter-spacing: 0.4px; }
+.lj-nome { font-size: 16px; color: var(--lj-texto); line-height: 1.15; }
+.lj-tags { font-size: 12px; font-weight: 700; color: var(--lj-suave); margin-top: 2px; }
+.lj-preco { font-size: 17px; color: var(--lj-vinho); }
+.lj-preco-kg { font-size: 11.5px; font-weight: 800; color: var(--lj-suave); }
+.lj-esgotado {
+  font-size: 11.5px; font-weight: 900; color: #B23A2E;
+  background: #FDECEC; border-radius: 999px; padding: 3px 9px; display: inline-block; margin-top: 4px;
+}
+
+/* === TELA DE PRODUTO === */
+.lj-formatos { display: flex; gap: 10px; margin-top: 10px; }
+.lj-formato {
+  flex-grow: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  border-radius: 20px; padding: 14px 12px; min-height: 44px;
+  background: #fff; border: 2.5px solid var(--lj-borda); color: var(--lj-suave);
+}
+.lj-formato.is-on { background: #FDECEC; border-color: var(--lj-vermelho); color: var(--lj-vinho); }
+.lj-formato b { display: block; font-family: 'Baloo 2', sans-serif; font-size: 15.5px; line-height: 1.1; }
+.lj-formato small { display: block; font-size: 11.5px; font-weight: 700; opacity: 0.78; }
+
+.lj-caixa { background: #fff; border: 2px solid var(--lj-borda); border-radius: 22px; padding: 16px; }
+.lj-stepper { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.lj-btn-redondo {
+  width: 52px; height: 52px; border-radius: 17px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.lj-btn-redondo.menos { background: #FDECEC; }
+.lj-btn-redondo.mais { background: var(--lj-vermelho); }
+.lj-btn-redondo:disabled { opacity: 0.4; cursor: not-allowed; }
+.lj-quantia { font-size: 38px; color: var(--lj-vinho); line-height: 1; }
+
+.lj-aviso {
+  display: flex; align-items: center; gap: 9px; margin-top: 14px;
+  background: var(--lj-amarelo-claro); border-radius: 14px; padding: 10px 12px;
+  font-size: 12.5px; font-weight: 700; color: #8A5A00;
+}
+.lj-aviso.ok { background: #E9F6EC; color: #14602B; }
+
+/* === BARRA DE ACAO === */
+.lj-acao {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border-top: 2px solid var(--lj-borda);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+.lj-btn {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  border-radius: 18px; padding: 15px 14px; min-height: 52px;
+  font-family: 'Baloo 2', sans-serif; font-size: 17px; font-weight: 800;
+}
+.lj-btn-primario { background: var(--lj-vermelho); color: var(--lj-creme); box-shadow: 0 4px 0 var(--lj-vermelho-esc); }
+.lj-btn-zap { background: var(--lj-verde); color: #fff; box-shadow: 0 4px 0 #125626; }
+.lj-btn-amarelo { background: var(--lj-amarelo); color: var(--lj-vermelho-esc); box-shadow: 0 4px 0 #A96C00; }
+.lj-btn-vazio { background: #fff; color: var(--lj-vinho); border: 2px solid var(--lj-borda); box-shadow: none; }
+.lj-btn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+.lj-btn-largo { width: 100%; }
+.lj-btn-cresce { flex-grow: 1; }
+
+/* === CARRINHO === */
+.lj-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 2px solid var(--lj-borda); border-radius: 20px; padding: 12px;
+}
+.lj-qtd { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.lj-qtd button {
+  width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lj-qtd .menos { background: #FDECEC; }
+.lj-qtd .mais { background: var(--lj-vermelho); }
+.lj-qtd span { min-width: 30px; text-align: center; font-size: 16px; font-weight: 800; }
+
+.lj-entregas { display: flex; gap: 10px; margin-top: 10px; }
+.lj-entrega {
+  flex-grow: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  border-radius: 20px; padding: 14px 12px; min-height: 44px;
+  background: #fff; border: 2.5px solid var(--lj-borda); color: var(--lj-suave);
+}
+.lj-entrega.is-on { background: #FDECEC; border-color: var(--lj-vermelho); color: var(--lj-vinho); }
+.lj-entrega b { font-family: 'Baloo 2', sans-serif; font-size: 15.5px; }
+.lj-entrega small { font-size: 11.5px; font-weight: 700; opacity: 0.8; }
+
+.lj-resumo { display: flex; flex-direction: column; gap: 8px; }
+.lj-resumo-linha { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--lj-suave); }
+.lj-resumo-total { display: flex; justify-content: space-between; align-items: baseline; }
+.lj-resumo-total .valor { font-family: 'Baloo 2', sans-serif; font-size: 23px; font-weight: 800; color: var(--lj-vinho); }
+.lj-divisor { height: 2px; background: #F5E7DC; border-radius: 2px; }
+
+.lj-assinatura {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  border-radius: 20px; padding: 14px;
+  background: #fff; border: 2px solid var(--lj-borda);
+}
+.lj-assinatura.is-on { background: var(--lj-amarelo-claro); border-color: var(--lj-amarelo); }
+.lj-switch {
+  width: 56px; height: 32px; border-radius: 999px; flex-shrink: 0;
+  display: flex; align-items: center; padding: 3px; background: #E6D3C8;
+  justify-content: flex-start; transition: background 0.15s ease;
+}
+.lj-switch.is-on { background: var(--lj-vermelho); justify-content: flex-end; }
+.lj-switch i { width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+
+/* === FORMULARIO === */
+.lj-campo { display: flex; flex-direction: column; gap: 6px; }
+.lj-campo label { font-size: 12px; font-weight: 900; color: var(--lj-suave); letter-spacing: 0.5px; }
+.lj-campo input,
+.lj-campo textarea {
+  width: 100%; background: #fff; border: 2px solid var(--lj-borda); border-radius: 16px;
+  padding: 14px; font-size: 16px; font-weight: 700; color: var(--lj-texto); min-height: 52px;
+  outline: none; transition: border-color 0.15s ease;
+}
+.lj-campo input:focus,
+.lj-campo textarea:focus { border-color: var(--lj-vermelho); }
+.lj-campo textarea { min-height: 84px; resize: vertical; }
+.lj-erro { background: #FDECEC; color: #9B1B1B; border-radius: 14px; padding: 12px 14px; font-size: 13.5px; font-weight: 800; }
+
+/* === CONFIRMACAO === */
+.lj-ok {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  background: linear-gradient(160deg, #E12420 0%, #A50E10 100%);
+  padding: 44px 20px 28px;
+}
+.lj-ok-check {
+  display: flex; align-items: center; justify-content: center;
+  width: 92px; height: 92px; border-radius: 50%; background: var(--lj-amarelo); flex-shrink: 0;
+}
+.lj-ok-cartao {
+  width: 100%; background: var(--lj-fundo); border-radius: 24px; padding: 18px;
+  margin-top: 22px; display: flex; flex-direction: column; gap: 12px;
+}
+.lj-selo {
+  background: var(--lj-amarelo-claro); color: #8A5A00; border-radius: 999px;
+  padding: 4px 10px; font-size: 11.5px; font-weight: 900;
+}
+
+/* === ABAS DE BAIXO === */
+.lj-abas {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+  max-width: 560px; margin: 0 auto; height: 74px;
+  display: flex; background: #fff; border-top: 2px solid var(--lj-borda);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.lj-aba {
+  position: relative; flex-grow: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  background: transparent; color: #BFA79E; font-size: 11.5px; font-weight: 800;
+}
+.lj-aba.is-on { color: var(--lj-vermelho); }
+.lj-badge {
+  position: absolute; top: 9px; right: 50%; transform: translateX(26px);
+  min-width: 19px; height: 19px; border-radius: 10px; background: var(--lj-vermelho);
+  color: var(--lj-creme); font-size: 11.5px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center; padding: 0 5px;
+}
+
+/* === ESTADOS === */
+.lj-vazio { text-align: center; padding: 40px 16px; color: var(--lj-suave); }
+.lj-carregando { display: flex; align-items: center; justify-content: center; min-height: 60vh; color: var(--lj-suave); font-weight: 700; }
+.lj-skeleton { height: 96px; border-radius: 20px; background: linear-gradient(90deg, #F3E7DC 25%, #FBF1E8 37%, #F3E7DC 63%); background-size: 400% 100%; animation: lj-brilho 1.3s ease infinite; }
+@keyframes lj-brilho { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+.lj-fechada {
+  background: #FDECEC; border: 2px solid #F3C4C4; border-radius: 18px;
+  padding: 14px; font-size: 13.5px; font-weight: 800; color: #9B1B1B;
+}
+
+/* Linha de opcao (saco fechado) - igual ao artefato de design */
+.lj-opcao {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  border-radius: 20px; padding: 14px; min-height: 44px;
+  background: #fff; border: 2.5px solid var(--lj-borda);
+}
+.lj-opcao.is-on { border-color: var(--lj-vermelho); }
+.lj-radio {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box;
+  border: 3px solid #E0CDC2; background: #fff;
+}
+.lj-opcao.is-on .lj-radio { border-color: var(--lj-vermelho); background: var(--lj-vermelho); box-shadow: inset 0 0 0 3px #fff; }
+
+/* Endereco no topo + modal */
+.lj-topo-local button { background: transparent; color: var(--lj-amarelo); font-size: 12.5px; font-weight: 800; padding: 2px 4px; }
+.lj-modal-fundo {
+  position: fixed; inset: 0; z-index: 40; background: rgba(40, 10, 5, 0.55);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.lj-modal {
+  width: 100%; max-width: 560px; background: var(--lj-fundo);
+  border-radius: 26px 26px 0 0; padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* Leve tambem */
+.lj-upsell {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: var(--lj-amarelo-claro); border: 2px solid var(--lj-amarelo);
+  border-radius: 20px; padding: 10px 12px;
+}
+.lj-upsell-mais {
+  width: 38px; height: 38px; border-radius: 13px; background: var(--lj-amarelo);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}

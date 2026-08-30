@@ -1070,6 +1070,13 @@ app.get('/api/reports/sales-detail', async (req, res) => {
   }
 });
 
+// Tudo que nao tiver rota propria aqui cai no mesmo handler que roda na
+// Vercel (api/index.js). E assim que a loja online e os pedidos funcionam
+// tambem em desenvolvimento, sem precisar duplicar codigo.
+import vercelHandler from './index.js';
+
+app.all('/api/*', (req, res) => vercelHandler(req, res));
+
 app.listen(PORT, () => {
   console.log(`API rodando em http://localhost:${PORT}`);
 });

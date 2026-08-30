@@ -1284,3 +1284,49 @@ html, body, #root {
   margin-bottom: 0.75rem;
 }
 .capitalize { text-transform: capitalize; }
+
+/* ==============================================
+   PEDIDOS ONLINE (tela Orders)
+   ============================================== */
+.ped-contador { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 8px; margin-left: 0.5rem; border-radius: 13px; background: #B60100; color: #fff; font-size: 0.8rem; font-weight: 800; }
+.ped-filtros { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ped-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; align-items: start; }
+.ped-card { background: #fff; border: 1px solid #ececec; border-radius: 16px; padding: 1rem; display: flex; flex-direction: column; gap: 0.7rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.ped-card-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.ped-numero { font-size: 1rem; font-weight: 800; color: #1a1d23; }
+.ped-hora { font-size: 0.78rem; color: #999; }
+.ped-status { font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
+.ped-cliente { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.ped-nome { font-size: 0.95rem; font-weight: 700; color: #333; }
+.ped-zap { display: inline-flex; align-items: center; gap: 5px; border: 0; background: #E9F6EC; color: #0B6B3A; border-radius: 999px; padding: 5px 11px; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+.ped-zap:hover { background: #d9efdf; }
+.ped-entrega { display: flex; align-items: flex-start; gap: 0.6rem; background: #f7f8fa; border-radius: 12px; padding: 0.6rem 0.75rem; color: #555; }
+.ped-entrega-titulo { font-size: 0.85rem; font-weight: 700; color: #333; }
+.ped-endereco { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: #777; margin-top: 2px; }
+.ped-itens { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+.ped-itens li { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.85rem; color: #444; }
+.ped-itens li b { color: #B60100; }
+.ped-obs { font-size: 0.82rem; color: #777; font-style: italic; background: #FFF9E8; border-radius: 10px; padding: 0.5rem 0.7rem; }
+.ped-clube { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #8A5A00; background: #FFF3C9; border-radius: 10px; padding: 0.45rem 0.7rem; }
+.ped-totais { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; border-top: 1px dashed #e5e5e5; padding-top: 0.6rem; font-size: 0.78rem; color: #888; }
+.ped-totais strong { font-size: 1.15rem; color: #1a1d23; }
+.ped-venda { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #0B6B3A; }
+.ped-acoes { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ped-acoes .btn { flex: 1 1 auto; justify-content: center; }
+.ped-rotulo { display: block; font-size: 0.75rem; font-weight: 800; color: #888; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 0.5rem; }
+.ped-pagamentos { display: flex; gap: 0.5rem; }
+.ped-pagamentos .pdv-filter-btn { flex: 1; }
+@media (max-width: 640px) {
+  .ped-lista { grid-template-columns: 1fr; }
+}
+.sidebar-link-badge { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: #B60100; color: #fff; font-size: 0.72rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+
+/* Bloco "Loja online" no cadastro de produto */
+.loja-bloco { border: 1px dashed #d9d9d9; border-radius: 14px; padding: 1rem; margin-top: 0.5rem; background: #fcfbfa; display: flex; flex-direction: column; gap: 0.6rem; }
+.loja-bloco-titulo { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-weight: 700; color: #B60100; flex-wrap: wrap; }
+.loja-bloco-titulo span { font-size: 0.75rem; font-weight: 500; color: #999; }
+.loja-switch { display: flex; align-items: center; gap: 0.6rem; font-size: 0.88rem; color: #444; cursor: pointer; }
+.loja-switch input { width: 18px; height: 18px; accent-color: #B60100; cursor: pointer; }
+.loja-link { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: #f7f8fa; border-radius: 12px; padding: 0.85rem 1rem; flex-wrap: wrap; }
+.loja-link strong { display: block; font-size: 0.8rem; color: #666; }
+.loja-link div div { font-size: 0.95rem; font-weight: 700; color: #B60100; word-break: break-all; }

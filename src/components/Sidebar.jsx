@@ -4,6 +4,7 @@ import api from '../api';
 import {
   Dashboard as DashboardIcon,
   ShoppingCart,
+  ReceiptLong,
   AccountBalanceWallet,
   Inventory,
   Storage,
@@ -21,6 +22,7 @@ import {
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: DashboardIcon },
   { path: '/sales', label: 'Vendas (PDV)', icon: ShoppingCart },
+  { path: '/orders', label: 'Pedidos online', icon: ReceiptLong },
   { path: '/cashier', label: 'Caixa', icon: AccountBalanceWallet },
   { path: '/products', label: 'Produtos', icon: Inventory },
   { path: '/stock', label: 'Estoque', icon: Storage },
@@ -32,6 +34,7 @@ const menuItems = [
 
 export default function Sidebar({ user, onLogout }) {
   const [alertCount, setAlertCount] = useState(0);
+  const [pedidosNovos, setPedidosNovos] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   function closeMobileMenu() {
@@ -43,6 +46,19 @@ export default function Sidebar({ user, onLogout }) {
     const interval = setInterval(fetchAlerts, 300000);
     return () => clearInterval(interval);
   }, []);
+
+  // Pedido novo da loja online aparece como bolinha no menu.
+  useEffect(() => {
+    fetchPedidos();
+    const interval = setInterval(fetchPedidos, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function fetchPedidos() {
+    api.get('/orders?status=novo')
+      .then(res => setPedidosNovos(Array.isArray(res.data) ? res.data.length : 0))
+      .catch(() => {});
+  }
 
   useEffect(() => {
     if (mobileMenuOpen && window.matchMedia('(max-width: 768px)').matches) {
@@ -79,6 +95,9 @@ export default function Sidebar({ user, onLogout }) {
               end={item.path === '/'}>
               <div className="sidebar-link-icon"><item.icon sx={{ fontSize: 20 }} /></div>
               <span className="sidebar-link-text">{item.label}</span>
+              {item.path === '/orders' && pedidosNovos > 0 && (
+                <span className="sidebar-link-badge">{pedidosNovos}</span>
+              )}
             </NavLink>
           ))}
         </nav>
