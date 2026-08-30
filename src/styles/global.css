@@ -1494,3 +1494,17 @@ html, body, #root {
   }
   .data-table tfoot td { border: 0; padding: 0; font-weight: 800; }
 }
+
+/* Desconto no PDV */
+.pdv-summary-discount { cursor: pointer; border-radius: 8px; transition: background 0.12s; }
+.pdv-summary-discount:hover { background: rgba(182,1,0,0.06); }
+.pdv-desconto-limpar {
+  width: 100%; margin-top: 0.6rem; padding: 0.65rem;
+  background: transparent; border: 1.5px solid #EFE3D8; border-radius: 12px;
+  color: #8A776D; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.pdv-desconto-limpar:hover { background: #FDECEC; color: #B60100; border-color: #F3C4C4; }
+@media (max-width: 768px) {
+  .pdv-desconto-limpar { min-height: 46px; }
+}

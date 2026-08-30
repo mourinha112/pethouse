@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { filtrarProdutos } from '../lib/busca';
 import axios from 'axios';
 import {
-  Search, X, CreditCard, Banknote, Smartphone, Package,
+  Search, X, CreditCard, Banknote, Smartphone, Package, Percent,
   Clock, Printer, ChevronRight, List, Scale, PackageOpen, AlertCircle, CheckCircle,
   Calendar, BarChart3, DollarSign
 } from 'lucide-react';
@@ -39,7 +39,10 @@ export default function Sales() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('dinheiro');
-  const [discount, setDiscount] = useState(0);
+  const [descontoTipo, setDescontoTipo] = useState('valor');   // 'valor' (R$) ou 'percent' (%)
+  const [descontoEntrada, setDescontoEntrada] = useState(0);
+  const [showDescontoModal, setShowDescontoModal] = useState(false);
+  const [descontoInput, setDescontoInput] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [cashReceived, setCashReceived] = useState('');
   const [showReceipt, setShowReceipt] = useState(null);
@@ -57,6 +60,7 @@ export default function Sales() {
   const searchRef = useRef(null);
   const receiptRef = useRef(null);
   const kgInputRef = useRef(null);
+  const descontoRef = useRef(null);
 
   useEffect(() => { loadClients(); loadTodaySales(); loadAllProducts(); }, []);
   useEffect(() => {
@@ -67,6 +71,14 @@ export default function Sales() {
   function focusSearch() {
     setTimeout(() => searchRef.current?.focus(), 50);
   }
+
+  // Ao abrir o modal ja vem o desconto atual preenchido e o cursor no campo
+  useEffect(() => {
+    if (!showDescontoModal) return;
+    setDescontoInput(descontoEntrada > 0 ? String(descontoEntrada) : '');
+    const t = setTimeout(() => descontoRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [showDescontoModal]);
 
   // Toast notification (substitui alert nativo)
   function showToast(message, type = 'error') {
@@ -235,13 +247,32 @@ export default function Sales() {
   }, 0);
 
   const cartSubtotal = cart.reduce((sum, item) => sum + itemSubtotal(item), 0);
-  const discountValue = discount > 0 ? cartSubtotal * (discount / 100) : 0;
+  // O desconto pode ser digitado em reais ou em porcentagem; nunca passa
+  // do subtotal, para o total nao ficar negativo.
+  const descontoBruto = descontoTipo === 'percent'
+    ? cartSubtotal * ((Number(descontoEntrada) || 0) / 100)
+    : (Number(descontoEntrada) || 0);
+  const discountValue = Math.max(0, Math.min(descontoBruto, cartSubtotal));
   const finalTotal = cartSubtotal - discountValue;
 
   const cashNum = parseFloat(cashReceived) || 0;
   const change = cashNum > 0 ? cashNum - finalTotal : 0;
 
-  function toggleDiscount() { setDiscount(prev => prev === 10 ? 0 : 10); }
+  function abrirDesconto() { setShowDescontoModal(true); }
+
+  function fecharDesconto() { setShowDescontoModal(false); focusSearch(); }
+
+  function aplicarDesconto() {
+    const bruto = String(descontoInput).replace(',', '.');
+    const v = parseFloat(bruto) || 0;
+    if (v <= 0) { setDescontoEntrada(0); fecharDesconto(); return; }
+    if (descontoTipo === 'percent' && v > 100) { showToast('Desconto nao pode passar de 100%'); return; }
+    if (descontoTipo === 'valor' && v > cartSubtotal) { showToast('Desconto maior que o valor da venda'); return; }
+    setDescontoEntrada(v);
+    fecharDesconto();
+  }
+
+  function limparDesconto() { setDescontoEntrada(0); setDescontoInput(''); fecharDesconto(); }
 
   function openPayment() {
     if (cart.length === 0) return;
@@ -295,7 +326,7 @@ export default function Sales() {
       setShowPaymentModal(false);
       setShowReceipt(receiptData);
       setCart([]);
-      setDiscount(0);
+      setDescontoEntrada(0);
       setSelectedClient('');
       setPaymentMethod('dinheiro');
       setCashReceived('');
@@ -353,10 +384,10 @@ export default function Sales() {
       }
       if (e.key === 'Escape') { e.preventDefault(); setSearchResults([]); focusSearch(); }
       else if (e.key === 'F2') { e.preventDefault(); openPayment(); }
-      else if (e.key === 'F3') { e.preventDefault(); setDiscount(prev => prev === 10 ? 0 : 10); }
+      else if (e.key === 'F3') { e.preventDefault(); setShowDescontoModal(true); }
       else if (e.key === 'F5') {
         e.preventDefault();
-        setCart([]); setDiscount(0); setSearchTerm(''); setSearchResults([]);
+        setCart([]); setDescontoEntrada(0); setSearchTerm(''); setSearchResults([]);
         focusSearch();
       }
       else if (e.key === 'F4') { e.preventDefault(); setShowHistory(prev => !prev); }
@@ -607,8 +638,11 @@ export default function Sales() {
           </div>
           <div className="pdv-cart-summary">
             <div className="pdv-summary-line"><span>{cart.length} itens :</span><span>R$ {cartSubtotal.toFixed(2)}</span></div>
-            <div className="pdv-summary-line pdv-summary-discount" onClick={toggleDiscount}>
-              <span>Desconto {discount}% (F3) :</span><span>R$ {discountValue.toFixed(2)}</span>
+            <div className="pdv-summary-line pdv-summary-discount" onClick={abrirDesconto} title="Clique para dar desconto (F3)">
+              <span>
+                Desconto{descontoEntrada > 0 && descontoTipo === 'percent' ? ` ${descontoEntrada}%` : ''} (F3) :
+              </span>
+              <span>R$ {discountValue.toFixed(2)}</span>
             </div>
             <div className="pdv-summary-line"><span>Subtotal :</span><span>R$ {(cartSubtotal - discountValue).toFixed(2)}</span></div>
           </div>
@@ -621,6 +655,89 @@ export default function Sales() {
           </div>
         </div>
       </div>
+
+      {/* Modal de desconto */}
+      {showDescontoModal && (
+        <div className="modal-overlay" onClick={fecharDesconto}>
+          <div className="pdv-kg-modal" onClick={e => e.stopPropagation()}>
+            <div className="pdv-kg-modal-header">
+              <Percent size={22} /><h2>Desconto</h2>
+              <button className="btn-icon" onClick={fecharDesconto}><X size={20} /></button>
+            </div>
+
+            <div className="pdv-kg-modal-product">
+              <strong>{cart.length} {cart.length === 1 ? 'item' : 'itens'}</strong>
+              <span>venda de R$ {cartSubtotal.toFixed(2)}</span>
+            </div>
+
+            <div className="pdv-kg-mode-tabs">
+              <button
+                className={`pdv-kg-mode-tab ${descontoTipo === 'valor' ? 'active' : ''}`}
+                onClick={() => { setDescontoTipo('valor'); setDescontoInput(''); setTimeout(() => descontoRef.current?.focus(), 50); }}
+              >Em R$</button>
+              <button
+                className={`pdv-kg-mode-tab ${descontoTipo === 'percent' ? 'active' : ''}`}
+                onClick={() => { setDescontoTipo('percent'); setDescontoInput(''); setTimeout(() => descontoRef.current?.focus(), 50); }}
+              >Em %</button>
+            </div>
+
+            <div className="pdv-kg-modal-input-wrap">
+              <label>{descontoTipo === 'valor' ? 'Quanto de desconto em R$?' : 'Quantos por cento?'}</label>
+              <input
+                ref={descontoRef}
+                type="number"
+                className="pdv-kg-modal-input"
+                placeholder={descontoTipo === 'valor' ? 'Ex: 5.00' : 'Ex: 10'}
+                step={descontoTipo === 'valor' ? '0.01' : '1'}
+                min="0"
+                max={descontoTipo === 'percent' ? '100' : undefined}
+                value={descontoInput}
+                onChange={e => setDescontoInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') aplicarDesconto();
+                  if (e.key === 'Escape') fecharDesconto();
+                }}
+              />
+            </div>
+
+            {parseFloat(String(descontoInput).replace(',', '.')) > 0 && (
+              <div className="pdv-kg-modal-preview">
+                <span>
+                  {descontoTipo === 'percent'
+                    ? `${descontoInput}% de R$ ${cartSubtotal.toFixed(2)}`
+                    : 'Total com desconto'}
+                </span>
+                <strong>
+                  {descontoTipo === 'percent'
+                    ? `- R$ ${(cartSubtotal * (parseFloat(String(descontoInput).replace(',', '.')) / 100)).toFixed(2)}`
+                    : `R$ ${Math.max(0, cartSubtotal - parseFloat(String(descontoInput).replace(',', '.'))).toFixed(2)}`}
+                </strong>
+              </div>
+            )}
+
+            <div className="pdv-kg-modal-quick">
+              {descontoTipo === 'valor'
+                ? [1, 2, 5, 10, 20, 50].map(v => (
+                    <button key={v} className="pdv-kg-modal-quick-btn" onClick={() => setDescontoInput(String(v))}>R${v}</button>
+                  ))
+                : [5, 10, 15, 20, 25, 30].map(v => (
+                    <button key={v} className="pdv-kg-modal-quick-btn" onClick={() => setDescontoInput(String(v))}>{v}%</button>
+                  ))
+              }
+            </div>
+
+            <button className="pdv-confirm-btn" onClick={aplicarDesconto}>
+              APLICAR DESCONTO
+            </button>
+
+            {descontoEntrada > 0 && (
+              <button className="pdv-desconto-limpar" onClick={limparDesconto}>
+                Tirar o desconto
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal KG */}
       {kgModal && (
@@ -772,7 +889,7 @@ export default function Sales() {
       {/* Atalhos */}
       <div className="pdv-shortcuts-bar">
         <span>F2 Pagar</span>
-        <span>F3 Desconto 10%</span>
+        <span>F3 Desconto</span>
         <span>F4 Vendas do Dia</span>
         <span>F5 Limpar</span>
         <span>ESC Fechar</span>
