@@ -1363,6 +1363,121 @@ export default async function handler(req, res) {
     }
 
     // ==================================================================
+    // MARKETING - o que mais vendeu, por periodo e por segmento de pet
+    // ==================================================================
+    if ((url === '/api/marketing/ranking' || url.startsWith('/api/marketing/ranking?')) && method === 'GET') {
+      let q = {};
+      try {
+        if (rawUrl.includes('?')) q = Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1]));
+      } catch (_) {}
+
+      const dias = Math.min(365, Math.max(1, parseInt(q.dias, 10) || 7));
+      const inicio = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: vendas, error: e1 } = await supabase
+        .from('sales')
+        .select('id, created_at, total')
+        .gte('created_at', inicio)
+        .limit(5000);
+      if (e1) throw e1;
+
+      const idsVenda = (vendas || []).map(v => v.id);
+      if (idsVenda.length === 0) {
+        return res.json({
+          periodo: { dias, inicio, vendas: 0 },
+          total: { faturamento: 0, itens: 0, produtos: 0 },
+          ranking: [],
+          sem_classificacao: 0,
+        });
+      }
+
+      const { data: itens, error: e2 } = await supabase
+        .from('sale_items')
+        .select('product_id, tipo_venda, quantidade_kg, subtotal')
+        .in('sale_id', idsVenda)
+        .limit(20000);
+      if (e2) throw e2;
+
+      const { data: produtos, error: e3 } = await supabase
+        .from('products')
+        .select('id, nome, marca, tipo, categoria, especie, porte, perfil, peso_saco_kg, estoque_kg, estoque_unidade')
+        .limit(3000);
+      if (e3) throw e3;
+
+      const porId = {};
+      for (const p of produtos || []) porId[p.id] = p;
+
+      // Quando os campos da loja nao foram preenchidos, cai no "tipo" que o
+      // PDV ja usa desde sempre.
+      const especieDe = (p) => p.especie || (p.tipo === 'cao' || p.tipo === 'gato' ? p.tipo : null);
+      const perfilDe = (p) => p.perfil || (p.tipo === 'filhote' || p.tipo === 'castrado' ? p.tipo : null);
+
+      const acumulado = {};
+      for (const it of itens || []) {
+        if (!it.product_id) continue;
+        const p = porId[it.product_id];
+        if (!p) continue;
+
+        const linha = acumulado[it.product_id] || (acumulado[it.product_id] = {
+          id: p.id,
+          nome: p.nome,
+          marca: p.marca || '',
+          categoria: p.categoria || 'racao',
+          especie: especieDe(p),
+          porte: p.porte || null,
+          perfil: perfilDe(p),
+          estoque_kg: p.estoque_kg || 0,
+          estoque_unidade: p.estoque_unidade || 0,
+          vezes: 0,
+          quilos: 0,
+          faturamento: 0,
+        });
+
+        linha.vezes += 1;
+        linha.faturamento += Number(it.subtotal) || 0;
+
+        const qtd = Number(it.quantidade_kg) || 0;
+        if (it.tipo_venda === 'saco') linha.quilos += qtd * (p.peso_saco_kg || 0);
+        else if (it.tipo_venda === 'kg') linha.quilos += qtd;
+      }
+
+      let lista = Object.values(acumulado);
+      const semClassificacao = lista.filter(l => !l.especie).length;
+
+      const querido = (campo, valor) => !valor || valor === 'todos' || campo === valor;
+      lista = lista.filter(l =>
+        querido(l.especie, q.especie)
+        && querido(l.porte, q.porte)
+        && querido(l.perfil, q.perfil)
+        && querido(l.categoria, q.categoria));
+
+      const faturamentoTotal = lista.reduce((soma, l) => soma + l.faturamento, 0);
+      const itensTotal = lista.reduce((soma, l) => soma + l.vezes, 0);
+
+      lista.sort((a, b) => b.faturamento - a.faturamento);
+
+      const ranking = lista.slice(0, 40).map(l => ({
+        ...l,
+        quilos: Math.round(l.quilos * 10) / 10,
+        faturamento: Math.round(l.faturamento * 100) / 100,
+        participacao: faturamentoTotal > 0
+          ? Math.round((l.faturamento / faturamentoTotal) * 1000) / 10
+          : 0,
+      }));
+
+      return res.json({
+        periodo: { dias, inicio, vendas: idsVenda.length },
+        total: {
+          faturamento: Math.round(faturamentoTotal * 100) / 100,
+          itens: itensTotal,
+          produtos: lista.length,
+        },
+        ranking,
+        sem_classificacao: semClassificacao,
+      });
+    }
+
+    // ==================================================================
     // SETTINGS (chave/valor) - usado pela loja online e pelo PDV
     // ==================================================================
     if (url === '/api/settings' && method === 'GET') {

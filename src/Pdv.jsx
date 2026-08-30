@@ -18,6 +18,7 @@ import Cashier from './pages/Cashier';
 import Settings from './pages/Settings';
 import Orders from './pages/Orders';
 import Photos from './pages/Photos';
+import Marketing from './pages/Marketing';
 
 export default function Pdv() {
   const [user, setUser] = useState(null);
@@ -66,6 +67,7 @@ export default function Pdv() {
             <Route path="/sales" element={<Sales />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/photos" element={<Photos />} />
+            <Route path="/marketing" element={<Marketing />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/stock" element={<Stock />} />

@@ -12,6 +12,7 @@ import {
   People,
   AttachMoney,
   BarChart,
+  Campaign,
   Settings,
   Warning,
   Person,
@@ -31,6 +32,7 @@ const menuItems = [
   { path: '/clients', label: 'Clientes', icon: People },
   { path: '/expenses', label: 'Financeiro', icon: AttachMoney },
   { path: '/reports', label: 'Relatorios', icon: BarChart },
+  { path: '/marketing', label: 'Marketing', icon: Campaign },
   { path: '/settings', label: 'Configuracoes', icon: Settings },
 ];
 
