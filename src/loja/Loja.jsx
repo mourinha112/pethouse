@@ -172,6 +172,37 @@ const Ico = {
   ),
 };
 
+function Pulando({ texto }) {
+  return (
+    <div className="lj-pulando">
+      <div className="lj-bolinhas"><i /><i /><i /></div>
+      {texto && <span>{texto}</span>}
+    </div>
+  );
+}
+
+function Girando({ cor = 'currentColor' }) {
+  return (
+    <svg className="lj-girando" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke={cor} strokeWidth="3" opacity="0.28" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke={cor} strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EsqueletoProduto() {
+  return (
+    <div className="lj-produto lj-esqueleto">
+      <div className="lj-foto lj-brilho" />
+      <div style={{ flexGrow: 1 }}>
+        <div className="lj-brilho" style={{ height: 11, width: '32%', borderRadius: 6 }} />
+        <div className="lj-brilho" style={{ height: 15, width: '78%', borderRadius: 6, marginTop: 7 }} />
+        <div className="lj-brilho" style={{ height: 11, width: '52%', borderRadius: 6, marginTop: 7 }} />
+      </div>
+    </div>
+  );
+}
+
 function FotoProduto({ p, tamanho = 'card' }) {
   const grande = tamanho === 'grande';
   if (p.foto_url) {
@@ -449,7 +480,21 @@ export default function Loja() {
   if (carregando) {
     return (
       <div className="lj-app">
-        <div className="lj-carregando">Carregando o catálogo…</div>
+        <div className="lj-topo">
+          <div className="lj-topo-linha">
+            <img className="lj-topo-logo" src="/logo.png" alt="The Pet House" />
+            <div style={{ flexGrow: 1 }}>
+              <div className="lj-ttl lj-topo-oi">Oi! Bora abastecer o pote?</div>
+              <div className="lj-topo-sub">The Pet House · Vila Maria Helena</div>
+            </div>
+          </div>
+        </div>
+        <div className="lj-conteudo lj-entra" key={tela}>
+          <Pulando texto="Buscando as rações…" />
+          <div className="lj-lista">
+            <EsqueletoProduto /><EsqueletoProduto /><EsqueletoProduto />
+          </div>
+        </div>
       </div>
     );
   }
@@ -562,7 +607,7 @@ export default function Loja() {
           <div className="lj-ttl lj-barra-titulo">Montar o pedido</div>
         </div>
 
-        <div className="lj-conteudo">
+        <div className="lj-conteudo lj-entra" key={tela}>
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             <FotoProduto p={produto} tamanho="grande" />
             <div style={{ flexGrow: 1, minWidth: 0 }}>
@@ -670,6 +715,8 @@ export default function Loja() {
           )}
         </div>
 
+        <div className="lj-espaco-acao" />
+
         {!semEstoque && (
           <div className="lj-acao">
             <div style={{ flexShrink: 0 }}>
@@ -695,7 +742,7 @@ export default function Loja() {
           <div className="lj-ttl lj-barra-titulo">{tela === 'checkout' ? 'Seus dados' : 'Seu pedido'}</div>
         </div>
 
-        <div className="lj-conteudo">
+        <div className="lj-conteudo lj-entra" key={tela}>
           {vazio && (
             <div className="lj-vazio">
               <Ico.Carrinho c="#E0C8BC" s={64} />
@@ -866,15 +913,18 @@ export default function Loja() {
           )}
         </div>
 
+        {!vazio && <div className="lj-espaco-acao com-abas" />}
+
         {!vazio && (
-          <div className="lj-acao">
+          <div className="lj-acao com-abas">
             {tela === 'carrinho' ? (
               <button className="lj-btn lj-btn-primario lj-btn-largo" onClick={() => setTela('checkout')}>
                 Continuar — {money(total)}
               </button>
             ) : (
               <button className="lj-btn lj-btn-zap lj-btn-largo" onClick={enviarPedido} disabled={enviando}>
-                <Ico.Zap /> {enviando ? 'Enviando…' : `Enviar pedido — ${money(total)}`}
+                {enviando ? <Girando cor="#fff" /> : <Ico.Zap />}
+                {enviando ? 'Enviando seu pedido…' : `Enviar pedido — ${money(total)}`}
               </button>
             )}
           </div>
@@ -903,7 +953,7 @@ export default function Loja() {
           <img src="/pet-clube.png" alt="" style={{ position: 'absolute', right: -10, bottom: -14, width: 138 }} />
         </div>
 
-        <div className="lj-conteudo">
+        <div className="lj-conteudo lj-entra" key={tela}>
           {[
             ['Dia e horário certos', 'semanal, quinzenal ou mensal'],
             ['Sem precisar pedir de novo', 'a gente avisa no dia anterior'],
@@ -949,7 +999,7 @@ export default function Loja() {
           />
         </div>
 
-        <div className="lj-conteudo">
+        <div className="lj-conteudo lj-entra" key={tela}>
           <div className="lj-chips">
             {[['todos', 'Todos'], ['cao', 'Cão'], ['gato', 'Gato']].map(([v, l]) => (
               <button
@@ -1062,7 +1112,7 @@ export default function Loja() {
         </div>
       </div>
 
-      <div className="lj-conteudo">
+      <div className="lj-conteudo lj-entra" key={tela}>
         {lojaFechada && (
           <div className="lj-fechada">A loja está fechada agora. Você pode montar o pedido e a gente confirma assim que abrir.</div>
         )}
@@ -1207,7 +1257,7 @@ function Abas({ tela, setTela, totalItens }) {
       </button>
       <button className={`lj-aba ${tela === 'carrinho' || tela === 'checkout' ? 'is-on' : ''}`} onClick={() => setTela('carrinho')}>
         <Ico.Carrinho c={cor('carrinho')} s={24} /><span>Pedido</span>
-        {totalItens > 0 && <span className="lj-badge">{totalItens}</span>}
+        {totalItens > 0 && <span className="lj-badge lj-pulsa" key={totalItens}>{totalItens}</span>}
       </button>
     </nav>
   );

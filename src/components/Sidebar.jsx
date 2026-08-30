@@ -76,10 +76,10 @@ export default function Sidebar({ user, onLogout }) {
   return (
     <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-mobile-open' : ''}`}>
       <div className="sidebar-brand">
-        <div className="sidebar-brand-icon"><img src="/logo.png" alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} /></div>
+        <div className="sidebar-brand-icon"><img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain' }} /></div>
         <div className="sidebar-brand-text">
-          <span className="sidebar-brand-name">PetShop</span>
-          <span className="sidebar-brand-sub">Sistema de Gestao</span>
+          <span className="sidebar-brand-name">The Pet House</span>
+          <span className="sidebar-brand-sub">Gestao</span>
         </div>
         <button type="button" className="sidebar-mobile-toggle" aria-label="Abrir menu" onClick={() => setMobileMenuOpen(true)}>
           <Menu sx={{ fontSize: 28 }} />

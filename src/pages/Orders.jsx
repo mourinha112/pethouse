@@ -4,7 +4,8 @@ import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import Loading from '../components/Loading';
 import {
-  RefreshCw, Truck, Store, Clock, Phone, MapPin, Repeat, Check, X, Receipt,
+  RefreshCw, Truck, Store, Phone, MapPin, Repeat, Check, X, Receipt,
+  TrendingUp, ShoppingBag, Hourglass, Ban,
 } from 'lucide-react';
 
 /*
@@ -18,6 +19,7 @@ const FILTROS = [
   { value: 'separando', label: 'Separando' },
   { value: 'pronto', label: 'Prontos' },
   { value: 'entregue', label: 'Entregues' },
+  { value: 'cancelado', label: 'Cancelados' },
   { value: 'todos', label: 'Todos' },
 ];
 
@@ -64,12 +66,17 @@ export default function Orders() {
   const [confirmando, setConfirmando] = useState(null);
   const [pagamento, setPagamento] = useState('pix');
   const [cancelando, setCancelando] = useState(null);
+  const [resumo, setResumo] = useState(null);
 
   const carregar = useCallback(async (silencioso) => {
     if (!silencioso) setCarregando(true);
     try {
-      const res = await api.get(`/orders?status=${filtro}`);
+      const [res, resResumo] = await Promise.all([
+        api.get(`/orders?status=${filtro}`),
+        api.get('/orders/resumo').catch(() => null),
+      ]);
       setPedidos(Array.isArray(res.data) ? res.data : []);
+      if (resResumo) setResumo(resResumo.data);
     } catch (err) {
       if (!silencioso) toast.error('Erro ao carregar pedidos');
     } finally {
@@ -141,6 +148,58 @@ export default function Orders() {
           <RefreshCw size={16} /> Atualizar
         </button>
       </div>
+
+      {resumo && (
+        <>
+          <div className="ped-metricas">
+            <div className="ped-metrica destaque">
+              <div className="ped-metrica-icone"><TrendingUp size={18} /></div>
+              <div>
+                <span className="ped-metrica-rotulo">Vendido hoje pela loja</span>
+                <strong>{money(resumo.hoje.produtos)}</strong>
+                <small>{resumo.hoje.pedidos} pedido{resumo.hoje.pedidos === 1 ? '' : 's'}
+                  {resumo.hoje.frete > 0 ? ` · ${money(resumo.hoje.frete)} de entrega` : ''}</small>
+              </div>
+            </div>
+
+            <div className="ped-metrica">
+              <div className="ped-metrica-icone"><ShoppingBag size={18} /></div>
+              <div>
+                <span className="ped-metrica-rotulo">No mês pela loja</span>
+                <strong>{money(resumo.mes.produtos)}</strong>
+                <small>{resumo.mes.pedidos} pedido{resumo.mes.pedidos === 1 ? '' : 's'} · ticket {money(resumo.ticket_medio_mes)}</small>
+              </div>
+            </div>
+
+            <div className="ped-metrica">
+              <div className="ped-metrica-icone alerta"><Hourglass size={18} /></div>
+              <div>
+                <span className="ped-metrica-rotulo">Esperando você</span>
+                <strong>{resumo.aguardando}</strong>
+                <small>{resumo.aguardando === 0 ? 'nada na fila' : 'pedido(s) para confirmar'}</small>
+              </div>
+            </div>
+
+            <div className="ped-metrica">
+              <div className="ped-metrica-icone neutro"><Ban size={18} /></div>
+              <div>
+                <span className="ped-metrica-rotulo">Cancelados no mês</span>
+                <strong>{resumo.cancelados_mes}</strong>
+                <small>{resumo.mes.pedidos + resumo.cancelados_mes > 0
+                  ? `${Math.round((resumo.cancelados_mes / (resumo.mes.pedidos + resumo.cancelados_mes)) * 100)}% dos pedidos`
+                  : 'nenhum'}</small>
+              </div>
+            </div>
+          </div>
+
+          <div className="ped-nota">
+            Esse dinheiro <strong>não é separado do caixa</strong> — quando você confirma um
+            pedido, ele vira venda e já entra no Dashboard, nos Relatórios e no fechamento
+            do dia. Os números aqui só mostram <em>quanto do total veio pela internet</em>.
+            A taxa de entrega fica de fora da venda, por isso aparece à parte.
+          </div>
+        </>
+      )}
 
       <div className="filter-bar ped-filtros">
         {FILTROS.map((f) => (

@@ -1637,6 +1637,58 @@ export default async function handler(req, res) {
       return res.json(data || []);
     }
 
+    // Metricas dos pedidos online (o dinheiro que entrou pela internet)
+    if ((url === '/api/orders/resumo' || url.startsWith('/api/orders/resumo?')) && method === 'GET') {
+      const agora = new Date();
+      const inicioDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).toISOString();
+      const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('status, subtotal, frete, total, created_at, sale_id')
+        .gte('created_at', inicioMes)
+        .limit(2000);
+
+      if (error) throw error;
+
+      const CONTA_COMO_VENDA = ['confirmado', 'separando', 'pronto', 'entregue'];
+      const vazio = () => ({ pedidos: 0, produtos: 0, frete: 0, total: 0 });
+      const hoje = vazio();
+      const mes = vazio();
+      let aguardando = 0;
+      let canceladosMes = 0;
+
+      for (const p of data || []) {
+        if (p.status === 'novo') aguardando++;
+        if (p.status === 'cancelado') { canceladosMes++; continue; }
+        if (!CONTA_COMO_VENDA.includes(p.status)) continue;
+
+        const somar = (alvo) => {
+          alvo.pedidos++;
+          alvo.produtos += Number(p.subtotal) || 0;
+          alvo.frete += Number(p.frete) || 0;
+          alvo.total += Number(p.total) || 0;
+        };
+        somar(mes);
+        if (p.created_at >= inicioDia) somar(hoje);
+      }
+
+      const arredonda = (o) => ({
+        pedidos: o.pedidos,
+        produtos: Math.round(o.produtos * 100) / 100,
+        frete: Math.round(o.frete * 100) / 100,
+        total: Math.round(o.total * 100) / 100,
+      });
+
+      return res.json({
+        hoje: arredonda(hoje),
+        mes: arredonda(mes),
+        aguardando,
+        cancelados_mes: canceladosMes,
+        ticket_medio_mes: mes.pedidos > 0 ? Math.round((mes.produtos / mes.pedidos) * 100) / 100 : 0,
+      });
+    }
+
     if (url.match(/^\/api\/orders\/\d+$/) && method === 'GET') {
       const id = url.replace(/^\/api\/orders\//, '');
       const { data, error } = await supabase
