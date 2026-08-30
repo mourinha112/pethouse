@@ -1474,6 +1474,28 @@ export default async function handler(req, res) {
       return res.json(ranking);
     }
 
+    // Meus pedidos: historico do cliente pelo WhatsApp, para a loja mostrar
+    // "voce ja pediu isso" sem precisar de cadastro nem senha.
+    if (url.startsWith('/api/shop/orders') && method === 'GET') {
+      let query = {};
+      try {
+        if (rawUrl.includes('?')) query = Object.fromEntries(new URLSearchParams(rawUrl.split('?')[1]));
+      } catch (_) {}
+
+      const whatsapp = String(query.whatsapp || '').replace(/\D/g, '');
+      if (whatsapp.length < 10) return res.json([]);
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, created_at, status, tipo_entrega, janela, endereco, subtotal, frete, total, assinatura, frequencia, order_items(*)')
+        .eq('cliente_whatsapp', whatsapp)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      return res.json(data || []);
+    }
+
     // Criar pedido a partir da loja
     if (url === '/api/shop/orders' && method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;

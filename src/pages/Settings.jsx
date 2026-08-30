@@ -5,7 +5,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import Loading from '../components/Loading';
 import {
   Settings as SettingsIcon, Save, Database, Download, UserPlus, Trash2,
-  X, Shield, HardDrive, RefreshCw
+  X, Shield, HardDrive, RefreshCw, Store, ExternalLink
 } from 'lucide-react';
 
 export default function Settings({ currentUser }) {

@@ -121,6 +121,11 @@ const Ico = {
       <path d="M6 8h12l-1 12H7z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </svg>
   ),
+  Lista: ({ c = '#fff', s = 24 }) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8.5 8.5h7M8.5 12.5h7M8.5 16.5h4" />
+    </svg>
+  ),
   Casa: ({ c = '#fff', s = 24 }) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M4 11l8-6.5 8 6.5" /><path d="M6.5 10.5V20h11v-9.5" />
@@ -172,6 +177,34 @@ const Ico = {
     </svg>
   ),
 };
+
+function BarraProgresso({ ativa }) {
+  if (!ativa) return null;
+  return (
+    <>
+      <div className="lj-progresso"><i /></div>
+      <div className="lj-pilula">
+        <div className="lj-bolinhas"><i /><i /><i /></div>
+      </div>
+    </>
+  );
+}
+
+const ROTULO_STATUS = {
+  novo: { texto: 'Aguardando a loja', cor: '#8A5A00', fundo: '#FFF3C9' },
+  confirmado: { texto: 'Confirmado', cor: '#14602B', fundo: '#E9F6EC' },
+  separando: { texto: 'Separando', cor: '#8A5A00', fundo: '#FFF3C9' },
+  pronto: { texto: 'Pronto', cor: '#14507A', fundo: '#E4F0FA' },
+  entregue: { texto: 'Entregue', cor: '#6B5B53', fundo: '#F1EBE5' },
+  cancelado: { texto: 'Cancelado', cor: '#9B1B1B', fundo: '#FDECEC' },
+};
+
+function dataCurta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 
 function Pulando({ texto }) {
   return (
@@ -260,6 +293,10 @@ export default function Loja() {
   const [referencia, setReferencia] = useState(dadosSalvos.referencia || '');
   const [observacao, setObservacao] = useState('');
 
+  const [navegando, setNavegando] = useState(false);
+  const [meusPedidos, setMeusPedidos] = useState([]);
+  const [carregandoMeus, setCarregandoMeus] = useState(false);
+  const [whatsBusca, setWhatsBusca] = useState('');
   const [editandoEndereco, setEditandoEndereco] = useState(false);
   const [rascunhoEndereco, setRascunhoEndereco] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -276,11 +313,78 @@ export default function Loja() {
     return () => { document.body.style.background = anterior; };
   }, []);
   useEffect(() => { gravarJson(CHAVE_CARRINHO, carrinho); }, [carrinho]);
+
+  // Nome, WhatsApp e endereco ficam guardados nesse aparelho assim que sao
+  // digitados - no proximo pedido ja vem tudo preenchido.
+  useEffect(() => {
+    if (!nome && !whats && !endereco) return;
+    gravarJson(CHAVE_CLIENTE, {
+      nome, whatsapp: soDigitos(whats), endereco, referencia,
+    });
+  }, [nome, whats, endereco, referencia]);
   useEffect(() => { window.scrollTo(0, 0); }, [tela, produtoId]);
+
+  // Entrou em "Meus pedidos" com WhatsApp ja guardado: busca sozinho.
+  useEffect(() => {
+    if (tela === 'meus' && soDigitos(whats).length >= 10 && meusPedidos.length === 0 && !carregandoMeus) {
+      carregarMeusPedidos(whats);
+    }
+  }, [tela]);
+
+  // Barrinha no topo a cada troca de tela: sem ela a navegacao parece que
+  // nao respondeu, porque tudo acontece na hora.
+  useEffect(() => {
+    setNavegando(true);
+    const t = setTimeout(() => setNavegando(false), 420);
+    return () => clearTimeout(t);
+  }, [tela, produtoId]);
   useEffect(() => { setQuantosMostrar(30); }, [especie, porte, perfil, busca]);
 
   const janelas = useMemo(() => janelasDisponiveis(entrega), [entrega]);
   useEffect(() => { if (janelas.length && !janelas.includes(janela)) setJanela(janelas[0]); }, [janelas, janela]);
+
+  async function carregarMeusPedidos(numero) {
+    const digitos = soDigitos(numero);
+    if (digitos.length < 10) { setMeusPedidos([]); return; }
+    setCarregandoMeus(true);
+    try {
+      const res = await api.get(`/shop/orders?whatsapp=${digitos}`);
+      setMeusPedidos(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setMeusPedidos([]);
+    } finally {
+      setCarregandoMeus(false);
+    }
+  }
+
+  function repetirPedido(pedido) {
+    const itens = [];
+    let faltou = 0;
+    for (const it of pedido.order_items || []) {
+      const prod = produtos.find((p) => p.id === it.product_id);
+      if (!prod || !temEstoque(prod)) { faltou++; continue; }
+      itens.push({
+        key: `${prod.id}-${it.tipo_venda}`,
+        product_id: prod.id,
+        marca: prod.marca,
+        nome: prod.nome,
+        tipo_venda: it.tipo_venda,
+        quantidade: Number(it.quantidade_kg) || 1,
+        preco_unitario: it.tipo_venda === 'saco' ? prod.preco_saco_fechado
+          : it.tipo_venda === 'kg' ? prod.preco_por_kg : prod.preco_unitario,
+        peso_saco_kg: prod.peso_saco_kg,
+        estoque_kg: prod.estoque_kg,
+        estoque_unidade: prod.estoque_unidade,
+      });
+    }
+    if (itens.length === 0) {
+      setErroEnvio('Os produtos desse pedido estao sem estoque agora.');
+      return;
+    }
+    setCarrinho(itens);
+    setTela('carrinho');
+    if (faltou > 0) setErroEnvio(`${faltou} item(ns) do pedido antigo estao sem estoque e ficaram de fora.`);
+  }
 
   async function carregar() {
     setCarregando(true);
@@ -448,6 +552,7 @@ export default function Loja() {
       setCarrinho([]);
       setObservacao('');
       setTela('ok');
+      carregarMeusPedidos(digitos);
     } catch (err) {
       setErroEnvio(err.response?.data?.error || 'Não conseguimos enviar o pedido. Tente de novo.');
     } finally {
@@ -481,6 +586,7 @@ export default function Loja() {
   if (carregando) {
     return (
       <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
         <div className="lj-topo">
           <div className="lj-topo-linha">
             <img className="lj-topo-logo" src="/logo.png" alt="The Pet House" />
@@ -503,6 +609,7 @@ export default function Loja() {
   if (falhou) {
     return (
       <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
         <div className="lj-conteudo" style={{ paddingTop: 60 }}>
           <div className="lj-erro">{falhou}</div>
           <button className="lj-btn lj-btn-primario lj-btn-largo" onClick={carregar}>Tentar de novo</button>
@@ -518,6 +625,7 @@ export default function Loja() {
     const zap = linkWhatsApp();
     return (
       <div className="lj-app" style={{ paddingBottom: 0 }}>
+        <BarraProgresso ativa={navegando} />
         <div className="lj-ok">
           <div className="lj-ok-check"><Ico.Check c="#8A0C0C" s={48} /></div>
           <div className="lj-ttl" style={{ fontSize: 27, color: '#FFF6DC', marginTop: 18, textAlign: 'center' }}>Pedido enviado!</div>
@@ -603,6 +711,7 @@ export default function Loja() {
 
     return (
       <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
         <div className="lj-barra">
           <button className="lj-icone-btn" onClick={() => setTela('catalogo')} aria-label="Voltar"><Ico.Voltar /></button>
           <div className="lj-ttl lj-barra-titulo">Montar o pedido</div>
@@ -738,6 +847,7 @@ export default function Loja() {
     const vazio = carrinho.length === 0;
     return (
       <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
         <div className="lj-barra">
           <button className="lj-icone-btn" onClick={() => setTela(tela === 'checkout' ? 'carrinho' : 'catalogo')} aria-label="Voltar"><Ico.Voltar /></button>
           <div className="lj-ttl lj-barra-titulo">{tela === 'checkout' ? 'Seus dados' : 'Seu pedido'}</div>
@@ -833,6 +943,8 @@ export default function Loja() {
                   </div>
                 </div>
               )}
+
+              {erroEnvio && <div className="lj-erro">{erroEnvio}</div>}
 
               <div className="lj-caixa lj-resumo">
                 <div className="lj-resumo-linha"><span>Produtos</span><span>{money(subtotal)}</span></div>
@@ -931,7 +1043,99 @@ export default function Loja() {
           </div>
         )}
 
-        <Abas tela={tela} setTela={setTela} totalItens={totalItens} />
+        <Abas tela={tela} setTela={setTela} totalItens={totalItens} aoAbrirMeus={() => carregarMeusPedidos(whats)} />
+      </div>
+    );
+  }
+
+  /* -------------------------------------------------------- MEUS PEDIDOS */
+  if (tela === 'meus') {
+    const numeroSalvo = soDigitos(whats);
+    return (
+      <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
+        <div className="lj-barra">
+          <div className="lj-ttl lj-barra-titulo">Meus pedidos</div>
+        </div>
+
+        <div className="lj-conteudo lj-entra" key={tela}>
+          {numeroSalvo.length < 10 ? (
+            <div className="lj-caixa">
+              <div className="lj-ttl" style={{ fontSize: 17, color: '#7D0B0B' }}>Qual é o seu WhatsApp?</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#8A6A62', margin: '4px 0 12px' }}>
+                É por ele que a gente acha os seus pedidos. Não precisa de senha.
+              </div>
+              <div className="lj-campo">
+                <input
+                  value={whatsBusca}
+                  onChange={(e) => setWhatsBusca(mascaraWhats(e.target.value))}
+                  placeholder="(21) 90000-0000"
+                  inputMode="numeric"
+                />
+              </div>
+              <button
+                className="lj-btn lj-btn-primario lj-btn-largo"
+                style={{ marginTop: 12 }}
+                disabled={soDigitos(whatsBusca).length < 10}
+                onClick={() => { setWhats(whatsBusca); carregarMeusPedidos(whatsBusca); }}
+              >
+                Ver meus pedidos
+              </button>
+            </div>
+          ) : carregandoMeus ? (
+            <Pulando texto="Buscando seus pedidos…" />
+          ) : meusPedidos.length === 0 ? (
+            <div className="lj-vazio">
+              <Ico.Lista c="#E0C8BC" s={56} />
+              <div className="lj-ttl" style={{ fontSize: 18, color: '#7D0B0B', marginTop: 12 }}>Nenhum pedido ainda</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 4 }}>
+                Quando você fizer o primeiro, ele fica guardado aqui.
+              </div>
+              <button className="lj-btn lj-btn-primario" style={{ marginTop: 16, display: 'inline-flex' }} onClick={() => setTela('catalogo')}>
+                Ver o catálogo
+              </button>
+            </div>
+          ) : (
+            <div className="lj-lista">
+              {meusPedidos.map((pd) => {
+                const st = ROTULO_STATUS[pd.status] || ROTULO_STATUS.novo;
+                return (
+                  <div className="lj-pedido" key={pd.id}>
+                    <div className="lj-pedido-topo">
+                      <div>
+                        <div className="lj-ttl" style={{ fontSize: 16, color: '#3A1A17' }}>Pedido #{pd.id}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#8A6A62' }}>{dataCurta(pd.created_at)}</div>
+                      </div>
+                      <span className="lj-pedido-status" style={{ color: st.cor, background: st.fundo }}>{st.texto}</span>
+                    </div>
+
+                    <div className="lj-pedido-itens">
+                      {(pd.order_items || []).map((it) => (
+                        <div key={it.id}>
+                          <span>{it.tipo_venda === 'kg' ? `${it.quantidade_kg} kg` : `${it.quantidade_kg}x`} {it.descricao}</span>
+                          <span>{money(it.subtotal)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="lj-pedido-pe">
+                      <span>{pd.tipo_entrega === 'entrega' ? 'Entrega' : 'Retirada'}{pd.janela ? ` · ${pd.janela}` : ''}</span>
+                      <strong>{money(pd.total)}</strong>
+                    </div>
+
+                    {pd.status !== 'cancelado' && (
+                      <button className="lj-btn lj-btn-vazio lj-btn-largo" onClick={() => repetirPedido(pd)}>
+                        <Ico.Repetir c="#7D0B0B" s={18} /> Pedir de novo
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <Abas tela={tela} setTela={setTela} totalItens={totalItens} aoAbrirMeus={() => carregarMeusPedidos(whats)} />
       </div>
     );
   }
@@ -940,6 +1144,7 @@ export default function Loja() {
   if (tela === 'clube') {
     return (
       <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
         <div className="lj-topo" style={{ position: 'relative', overflow: 'hidden' }}>
           <div className="lj-topo-linha">
             <button className="lj-icone-btn" onClick={() => setTela('home')} aria-label="Voltar"><Ico.Voltar /></button>
@@ -975,7 +1180,7 @@ export default function Loja() {
           </button>
         </div>
 
-        <Abas tela={tela} setTela={setTela} totalItens={totalItens} />
+        <Abas tela={tela} setTela={setTela} totalItens={totalItens} aoAbrirMeus={() => carregarMeusPedidos(whats)} />
       </div>
     );
   }
@@ -984,6 +1189,7 @@ export default function Loja() {
   if (tela === 'catalogo') {
     return (
       <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
         <div className="lj-barra" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12, paddingBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div className="lj-ttl lj-barra-titulo">Escolher ração</div>
@@ -1080,7 +1286,7 @@ export default function Loja() {
           )}
         </div>
 
-        <Abas tela={tela} setTela={setTela} totalItens={totalItens} />
+        <Abas tela={tela} setTela={setTela} totalItens={totalItens} aoAbrirMeus={() => carregarMeusPedidos(whats)} />
       </div>
     );
   }
@@ -1096,6 +1302,7 @@ export default function Loja() {
 
   return (
     <div className="lj-app">
+        <BarraProgresso ativa={navegando} />
       <div className="lj-topo">
         <div className="lj-topo-linha">
           <img className="lj-topo-logo" src="/logo.png" alt="The Pet House" />
@@ -1210,7 +1417,7 @@ export default function Loja() {
         )}
       </div>
 
-      <Abas tela={tela} setTela={setTela} totalItens={totalItens} />
+      <Abas tela={tela} setTela={setTela} totalItens={totalItens} aoAbrirMeus={() => carregarMeusPedidos(whats)} />
 
       {editandoEndereco && (
         <div className="lj-modal-fundo" onClick={() => setEditandoEndereco(false)}>
@@ -1246,7 +1453,7 @@ export default function Loja() {
 
 /* ------------------------------------------------------------------ */
 
-function Abas({ tela, setTela, totalItens }) {
+function Abas({ tela, setTela, totalItens, aoAbrirMeus }) {
   const cor = (t) => (tela === t ? '#C81414' : '#BFA79E');
   return (
     <nav className="lj-abas">
@@ -1256,8 +1463,14 @@ function Abas({ tela, setTela, totalItens }) {
       <button className={`lj-aba ${tela === 'catalogo' ? 'is-on' : ''}`} onClick={() => setTela('catalogo')}>
         <Ico.Grade c={cor('catalogo')} /><span>Catálogo</span>
       </button>
+      <button
+        className={`lj-aba ${tela === 'meus' ? 'is-on' : ''}`}
+        onClick={() => { setTela('meus'); if (aoAbrirMeus) aoAbrirMeus(); }}
+      >
+        <Ico.Lista c={cor('meus')} /><span>Pedidos</span>
+      </button>
       <button className={`lj-aba ${tela === 'carrinho' || tela === 'checkout' ? 'is-on' : ''}`} onClick={() => setTela('carrinho')}>
-        <Ico.Carrinho c={cor('carrinho')} s={24} /><span>Pedido</span>
+        <Ico.Carrinho c={cor('carrinho')} s={24} /><span>Carrinho</span>
         {totalItens > 0 && <span className="lj-badge lj-pulsa" key={totalItens}>{totalItens}</span>}
       </button>
     </nav>
