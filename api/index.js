@@ -1525,7 +1525,7 @@ export default async function handler(req, res) {
       if (error) throw error;
 
       const list = (data || [])
-        .filter(p => p.visivel_loja !== false)
+        .filter(p => p.visivel_loja === true)
         .map(p => {
           const isRacao = !p.categoria || p.categoria === 'racao';
           const temSaco = isRacao && p.preco_saco_fechado > 0 && p.peso_saco_kg > 0;
@@ -1643,7 +1643,7 @@ export default async function handler(req, res) {
           .eq('id', item.product_id)
           .single();
 
-        if (!prod || prod.ativo !== 1 || prod.visivel_loja === false) {
+        if (!prod || prod.ativo !== 1 || prod.visivel_loja !== true) {
           return res.status(409).json({ error: 'Um dos produtos saiu do catalogo. Revise o carrinho.' });
         }
 
@@ -1839,12 +1839,22 @@ export default async function handler(req, res) {
         total: Math.round(o.total * 100) / 100,
       });
 
+      // Contagens de apoio do painel da loja. `head: true` traz so o total,
+      // sem puxar as linhas.
+      const [{ count: clientes }, { count: produtos }] = await Promise.all([
+        supabase.from('clients').select('id', { count: 'exact', head: true }),
+        supabase.from('products').select('id', { count: 'exact', head: true })
+          .eq('ativo', 1).eq('visivel_loja', true),
+      ]);
+
       return res.json({
         hoje: arredonda(hoje),
         mes: arredonda(mes),
         aguardando,
         cancelados_mes: canceladosMes,
         ticket_medio_mes: mes.pedidos > 0 ? Math.round((mes.produtos / mes.pedidos) * 100) / 100 : 0,
+        clientes: clientes || 0,
+        produtos: produtos || 0,
       });
     }
 

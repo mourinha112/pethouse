@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 /*
- * Pedidos que chegam da loja online (/loja).
+ * Pedidos que chegam da loja online, que fica na raiz do dominio.
  * Confirmar um pedido cria a venda no PDV e baixa o estoque.
  */
 

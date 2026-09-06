@@ -1,25 +1,26 @@
 import React, { Suspense, lazy } from 'react';
-import { useLocation } from 'react-router-dom';
 
 /*
- * Duas aplicacoes moram no mesmo deploy:
+ * Qual aplicacao desenhar ja foi decidido no main.jsx, pelo endereco.
  *
- *   /loja  -> loja online, publica, sem login (o cliente pedindo racao)
- *   resto  -> PDV de gestao, atras do login
- *
- * Cada uma carrega no navegador so o seu proprio pedaco: quem entra na
- * loja pelo celular nao baixa o sistema de gestao inteiro junto.
+ * Cada uma carrega no navegador so o seu proprio pedaco: quem entra na loja
+ * pelo celular nao baixa o painel nem o sistema de gestao junto.
  */
 const Loja = lazy(() => import('./loja/Loja'));
+const PainelDaLoja = lazy(() => import('./painel/Painel'));
 const Pdv = lazy(() => import('./Pdv'));
 
-export default function App() {
-  const { pathname } = useLocation();
-  const naLoja = pathname === '/loja' || pathname.startsWith('/loja/');
+const APPS = {
+  loja: Loja,
+  painel: PainelDaLoja,
+  gestao: Pdv,
+};
 
+export default function App({ qual }) {
+  const Escolhida = APPS[qual] || Loja;
   return (
     <Suspense fallback={null}>
-      {naLoja ? <Loja /> : <Pdv />}
+      <Escolhida />
     </Suspense>
   );
 }

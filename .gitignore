@@ -30,3 +30,9 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Artefatos de build e pastas que nao pertencem a este repositorio.
+# Sem isso um `git add -A` distraido varre 100+ arquivos para dentro do commit.
+release/
+backend/
+web/

@@ -316,7 +316,7 @@ export default function Products() {
               <div className="loja-bloco">
                 <div className="loja-bloco-titulo">
                   <Store size={16} /> Loja online
-                  <span>como esse produto aparece para o cliente em /loja</span>
+                  <span>como esse produto aparece para o cliente na loja online</span>
                 </div>
 
                 <label className="loja-switch">

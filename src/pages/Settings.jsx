@@ -160,9 +160,9 @@ export default function Settings({ currentUser }) {
           <div className="loja-link">
             <div>
               <strong>Link para os clientes</strong>
-              <div>{typeof window !== 'undefined' ? `${window.location.origin}/loja` : '/loja'}</div>
+              <div>{typeof window !== 'undefined' ? window.location.origin : ''}</div>
             </div>
-            <a className="btn btn-secondary btn-sm" href="/loja" target="_blank" rel="noopener noreferrer">
+            <a className="btn btn-secondary btn-sm" href="/" target="_blank" rel="noopener noreferrer">
               <ExternalLink size={15} /> Abrir
             </a>
           </div>
