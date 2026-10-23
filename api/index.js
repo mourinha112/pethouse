@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { montarDashboard } from './_lib/dashboard.js';
 // A conta da promocao "leve X por Y" e a mesma que a loja usa na tela.
 import { temPromocao, totalUnidades } from '../src/lib/promocao.mjs';
 
@@ -92,6 +93,21 @@ export default async function handler(req, res) {
       }
     }
     
+    // Sessao ainda vale? O token leva o id e os 12 primeiros caracteres
+    // do hash da senha. Trocou a senha (ou o login), o site derruba a
+    // sessao e pede para entrar de novo. Token antigo, sem a impressao
+    // da senha, tambem cai.
+    if (url === '/api/auth/sessao' || url.endsWith('/auth/sessao')) {
+      const bruto = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      let partes = [];
+      try { partes = Buffer.from(bruto, 'base64').toString('utf8').split(':'); } catch (_) { partes = []; }
+      const [id, , impressao] = partes;
+      if (!id || !impressao) return res.status(401).json({ ok: false });
+      const { data } = await supabase.from('users').select('id, nome, login, role, senha_hash').eq('id', id).maybeSingle();
+      if (!data || String(data.senha_hash).slice(0, 12) !== impressao) return res.status(401).json({ ok: false });
+      return res.json({ ok: true, user: { id: data.id, nome: data.nome, login: data.login, role: data.role } });
+    }
+
     // Auth login/register
     if (url.includes('/auth/login') || url.includes('/auth/setup')) {
       if (method !== 'POST') {
@@ -112,7 +128,7 @@ export default async function handler(req, res) {
           return res.status(401).json({ error: 'Login ou senha incorretos' });
         }
 
-        const token = Buffer.from(`${data.id}:${Date.now()}`).toString('base64');
+        const token = Buffer.from(`${data.id}:${Date.now()}:${String(data.senha_hash).slice(0, 12)}`).toString('base64');
         return res.json({
           token,
           user: { id: data.id, nome: data.nome, login: data.login, role: data.role }
@@ -138,7 +154,7 @@ export default async function handler(req, res) {
 
         if (error) throw error;
 
-        const token = Buffer.from(`${newUser.id}:${Date.now()}`).toString('base64');
+        const token = Buffer.from(`${newUser.id}:${Date.now()}:${String(newUser.senha_hash).slice(0, 12)}`).toString('base64');
         return res.json({
           token,
           user: { id: newUser.id, nome: newUser.nome, login: newUser.login, role: newUser.role }
@@ -146,224 +162,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // Dashboard
+    // Dashboard (logica em api/_lib/dashboard.js)
     if (url === '/api/dashboard' && method === 'GET') {
       try {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const todayStart = todayStr + 'T00:00:00.000Z';
-        const todayEnd = todayStr + 'T23:59:59.999Z';
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-
-        const { data: todaySales, error: salesError } = await supabase
-          .from('sales')
-          .select('id, total, forma_pagamento, created_at')
-          .gte('created_at', todayStart)
-          .lte('created_at', todayEnd);
-
-        if (salesError) {
-          console.error('Dashboard sales error:', salesError);
-        }
-
-        const todayTotal = (todaySales || []).reduce((sum, s) => sum + (s.total || 0), 0);
-        const todayCount = todaySales?.length || 0;
-        const ticketMedio = todayCount > 0 ? todayTotal / todayCount : 0;
-
-        const { data: monthSales } = await supabase
-          .from('sales')
-          .select('id, total')
-          .gte('created_at', monthStart);
-        const monthTotal = monthSales?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
-
-        let products;
-        const productsFull = await supabase
-          .from('products')
-          .select('id, nome, marca, categoria, estoque_kg, estoque_unidade, preco_por_kg, preco_unitario, custo_unitario, custo_por_kg, custo_saco, peso_saco_kg')
-          .eq('ativo', 1);
-        if (productsFull.error) {
-          const productsMin = await supabase
-            .from('products')
-            .select('id, nome, marca, categoria, estoque_kg, estoque_unidade, preco_por_kg, preco_unitario, custo_unitario')
-            .eq('ativo', 1);
-          if (productsMin.error) {
-            console.error('Dashboard products error:', productsFull.error);
-            products = [];
-          } else {
-            products = productsMin.data;
-          }
-        } else {
-          products = productsFull.data;
-        }
-        if (!Array.isArray(products)) products = [];
-
-        const isRacao = (p) => !p.categoria || p.categoria === 'racao';
-
-        async function custoDasVendas(saleIds) {
-          if (!saleIds?.length) return 0;
-          const { data: items, error: itemsErr } = await supabase.from('sale_items').select('product_id, quantidade_kg').in('sale_id', saleIds);
-          if (itemsErr) return 0;
-          let custo = 0;
-          for (const item of items || []) {
-            const prod = products?.find(x => x.id === item.product_id);
-            if (!prod) continue;
-            const qty = item.quantidade_kg || 0;
-            if (!isRacao(prod)) {
-              custo += qty * (prod.custo_unitario || 0);
-            } else if (prod.peso_saco_kg && prod.custo_saco) {
-              const numSacos = qty / (prod.peso_saco_kg || 1);
-              custo += numSacos * (prod.custo_saco || 0);
-            } else {
-              custo += qty * (prod.custo_por_kg || 0);
-            }
-          }
-          return custo;
-        }
-
-        const todaySaleIds = (todaySales || []).map(s => s.id).filter(Boolean);
-        const monthSaleIds = (monthSales || []).map(s => s.id).filter(Boolean);
-        const custoDia = await custoDasVendas(todaySaleIds);
-        const custoMes = await custoDasVendas(monthSaleIds);
-        const lucroDia = todayTotal - custoDia;
-        const lucroMes = monthTotal - custoMes;
-
-        const totalEstoqueKg = products?.reduce((sum, p) => sum + (isRacao(p) ? (p.estoque_kg || 0) : 0), 0) || 0;
-        const totalEstoqueUn = products?.reduce((sum, p) => sum + (!isRacao(p) ? (p.estoque_unidade ?? 0) : 0), 0) || 0;
-        const valorEstoque = products?.reduce((sum, p) => {
-          if (isRacao(p)) return sum + ((p.estoque_kg || 0) * (p.preco_por_kg || 0));
-          return sum + ((p.estoque_unidade ?? 0) * (p.preco_unitario || 0));
-        }, 0) || 0;
-
-        const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const mesFim = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-        let despesasPendentes = 0;
-        try {
-          const { data: noMes } = await supabase.from('expenses').select('id, valor, pago').gte('data_vencimento', mesInicio).lte('data_vencimento', mesFim);
-          const { data: rec } = await supabase.from('expenses').select('id, valor, pago').or('recorrente.eq.1,recorrente.is.true');
-          const seen = new Set((noMes || []).map(e => e.id));
-          const recUniq = (rec || []).filter(e => !seen.has(e.id) && seen.add(e.id));
-          const todasDoMes = [...(noMes || []), ...recUniq];
-          despesasPendentes = todasDoMes.filter(e => !e.pago).reduce((s, e) => s + (Number(e.valor) || 0), 0);
-        } catch (_) {}
-
-        const { data: metaData } = await supabase.from('settings').select('value').eq('key', 'meta_diaria').maybeSingle();
-        const metaDiaria = parseFloat(metaData?.value || '500');
-        const metaPercent = metaDiaria > 0 ? Math.min(100, Math.round((todayTotal / metaDiaria) * 100)) : 0;
-
-        let ultimasVendas = [];
-        const uvRes = await supabase.from('sales').select('*, clients(nome)').order('created_at', { ascending: false }).limit(5);
-        if (uvRes.error) {
-          const uvMin = await supabase.from('sales').select('id, total, created_at, forma_pagamento').order('created_at', { ascending: false }).limit(5);
-          ultimasVendas = (uvMin.data || []).map(s => ({ ...s, clients: { nome: '' } }));
-        } else {
-          ultimasVendas = uvRes.data || [];
-        }
-
-        const paymentsObj = {};
-        const paymentsQtd = {};
-        (todaySales || []).forEach(s => {
-          const forma = s.forma_pagamento || 'outros';
-          paymentsObj[forma] = (paymentsObj[forma] || 0) + (s.total || 0);
-          paymentsQtd[forma] = (paymentsQtd[forma] || 0) + 1;
-        });
-        const vendasPorPagamento = Object.entries(paymentsObj).map(([forma_pagamento, total]) => ({
-          forma_pagamento,
-          total,
-          qtd: paymentsQtd[forma_pagamento] || 0,
-        }));
-
-        const last30 = new Date();
-        last30.setDate(last30.getDate() - 30);
-        const since = last30.toISOString();
-        const { data: sales30 } = await supabase.from('sales').select('id').gte('created_at', since);
-        const saleIds = (sales30 || []).map(s => s.id);
-        let topProdutos = [];
-        if (saleIds.length > 0) {
-          const { data: items } = await supabase.from('sale_items').select('product_id, quantidade_kg, subtotal').in('sale_id', saleIds);
-          const byProduct = {};
-          (items || []).forEach(item => {
-            const id = item.product_id;
-            if (!byProduct[id]) byProduct[id] = { product_id: id, quantidade_kg: 0, total: 0 };
-            byProduct[id].quantidade_kg += item.quantidade_kg || 0;
-            byProduct[id].total += item.subtotal || 0;
-          });
-          topProdutos = Object.values(byProduct)
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 5)
-            .map(p => {
-              const prod = products?.find(x => x.id === p.product_id);
-              return {
-                nome: prod?.nome || 'Produto',
-                marca: prod?.marca || '',
-                total: p.total,
-                total_kg: p.quantidade_kg || 0,
-              };
-            });
-        }
-
-        const isRacaoAlert = (p) => !p.categoria || p.categoria === 'racao';
-        const estoqueBaixo = (products || [])
-          .filter(p => isRacaoAlert(p) ? (p.estoque_kg || 0) < 10 : (p.estoque_unidade ?? 0) < (p.estoque_minimo_unidade ?? 1))
-          .slice(0, 10)
-          .map(p => isRacaoAlert(p)
-            ? { id: p.id, nome: p.nome, marca: p.marca || '', tipo_estoque: 'kg', estoque_kg: p.estoque_kg, estoque_unidade: null, estoque_minimo_dias: p.estoque_minimo_dias || 7 }
-            : { id: p.id, nome: p.nome, marca: p.marca || '', tipo_estoque: 'un', estoque_kg: null, estoque_unidade: p.estoque_unidade ?? 0, estoque_minimo_unidade: p.estoque_minimo_unidade || 0 });
-
-        let totalClientes = 0;
-        try {
-          const { count } = await supabase.from('clients').select('*', { count: 'exact', head: true });
-          totalClientes = count ?? 0;
-        } catch (_) {}
-
-        return res.json({
-          faturamento_dia: todayTotal,
-          vendas_dia: todayCount,
-          ticket_medio: ticketMedio,
-          faturamento_mes: monthTotal,
-          custo_dia: custoDia,
-          custo_mes: custoMes,
-          lucro_dia: lucroDia,
-          lucro_mes: lucroMes,
-          estoque_total_kg: totalEstoqueKg,
-          estoque_total_unidade: totalEstoqueUn,
-          valor_estoque: valorEstoque,
-          total_produtos: products?.length || 0,
-          total_clientes: totalClientes,
-          despesas_pendentes: despesasPendentes,
-          meta_diaria: metaDiaria,
-          meta_percent: metaPercent,
-          pagamentos: paymentsObj,
-          vendas_por_pagamento: vendasPorPagamento,
-          ultimas_vendas: ultimasVendas,
-          top_produtos: topProdutos,
-          alertas_estoque: estoqueBaixo || [],
-          estoque_baixo: estoqueBaixo || [],
-        });
-      } catch (err) {
-        console.error('Dashboard error:', err);
-        return res.status(200).json({
-          faturamento_dia: 0,
-          vendas_dia: 0,
-          ticket_medio: 0,
-          faturamento_mes: 0,
-          custo_dia: 0,
-          custo_mes: 0,
-          lucro_dia: 0,
-          lucro_mes: 0,
-          estoque_total_kg: 0,
-          estoque_total_unidade: 0,
-          valor_estoque: 0,
-          total_produtos: 0,
-          total_clientes: 0,
-          despesas_pendentes: 0,
-          meta_diaria: 500,
-          meta_percent: 0,
-          pagamentos: {},
-          vendas_por_pagamento: [],
-          ultimas_vendas: [],
-          top_produtos: [],
-          alertas_estoque: [],
-          estoque_baixo: [],
-        });
+        return res.status(200).json(await montarDashboard(supabase));
+      } catch (e) {
+        console.error('Dashboard error:', e);
+        return res.status(200).json(emptyDashboard());
       }
     }
 

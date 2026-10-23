@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { ProvedorDeAvisos } from './Aviso';
 import Login from './Login';
 import api from '../api';
+import { conferirSessao, limparSessao } from '../lib/sessao';
 import {
   LayoutDashboard, ClipboardList, Package, Gift, Settings as Engrenagem,
   ExternalLink, LogOut, Menu, X, User,
@@ -58,6 +59,14 @@ export default function PainelDaLoja() {
     return () => clearInterval(t);
   }, [usuario]);
 
+  // Sessao guardada so vale se a senha ainda for a mesma no servidor.
+  useEffect(() => {
+    if (!usuario) return;
+    conferirSessao().then((valida) => { if (valida === null) setUsuario(null); });
+    // so na abertura
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     document.body.classList.add('pn-body');
     // Ver o comentario no topo do admin.css: garante que nada de fora
@@ -67,10 +76,7 @@ export default function PainelDaLoja() {
   }, []);
 
   function sair() {
-    try {
-      localStorage.removeItem('petshop_token');
-      localStorage.removeItem('petshop_user');
-    } catch (_) { /* ignora */ }
+    limparSessao();
     setUsuario(null);
   }
 

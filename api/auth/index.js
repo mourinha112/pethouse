@@ -45,7 +45,7 @@ export default async function handler(req, res) {
           return res.status(401).json({ error: 'Login ou senha incorretos' });
         }
 
-        const token = Buffer.from(`${data.id}:${Date.now()}`).toString('base64');
+        const token = Buffer.from(`${data.id}:${Date.now()}:${String(data.senha_hash).slice(0, 12)}`).toString('base64');
         return res.json({
           token,
           user: { id: data.id, nome: data.nome, login: data.login, role: data.role }
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
 
         if (error) throw error;
 
-        const token = Buffer.from(`${newUser.id}:${Date.now()}`).toString('base64');
+        const token = Buffer.from(`${newUser.id}:${Date.now()}:${String(newUser.senha_hash).slice(0, 12)}`).toString('base64');
         return res.json({
           token,
           user: { id: newUser.id, nome: newUser.nome, login: newUser.login, role: newUser.role }

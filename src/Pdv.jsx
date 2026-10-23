@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import Orders from './pages/Orders';
 import Photos from './pages/Photos';
 import Marketing from './pages/Marketing';
+import { conferirSessao, limparSessao } from './lib/sessao';
 
 export default function Pdv() {
   const [user, setUser] = useState(null);
@@ -30,13 +31,16 @@ export default function Pdv() {
       try { setUser(JSON.parse(saved)); } catch (e) { localStorage.removeItem('petshop_user'); }
     }
     setChecking(false);
+    // Sessao guardada so vale se a senha ainda for a mesma no servidor.
+    if (saved) {
+      conferirSessao().then((valida) => { if (valida === null) setUser(null); });
+    }
   }, []);
 
   function handleLogin(userData) { setUser(userData); }
 
   function handleLogout() {
-    localStorage.removeItem('petshop_token');
-    localStorage.removeItem('petshop_user');
+    limparSessao();
     setUser(null);
   }
 
